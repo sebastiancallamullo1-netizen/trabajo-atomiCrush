@@ -1,184 +1,535 @@
-.counter {
+/* ============================================================
+   ESTILOS DE ATOMICRUSH
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Inter:wght@400;600;800&display=swap");
+
+/* ---------- Fondo y cajas ---------- */
+.ac-root {
+  min-height: 100vh;
+  color: #f8fafc;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 12px;
+  /* Fondo tipo laboratorio: manchas de luz de colores + cuadrícula suave */
+  background:
+    radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.18), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.18), transparent 45%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 32px 32px,
+    #0b1120;
+}
+
+.ac-box {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(30, 41, 59, 0.88);
+  border: 1px solid #334155;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  animation: ac-aparecer 0.3s ease-out;
+}
+
+@keyframes ac-aparecer {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Textos ---------- */
+.ac-logo {
+  font-size: 56px;
+  text-align: center;
+  animation: ac-girar 8s linear infinite;
+}
+
+@keyframes ac-girar {
+  to { transform: rotate(360deg); }
+}
+
+.ac-title {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+  background: linear-gradient(to right, #38bdf8, #a78bfa, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.ac-subtitulo {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.ac-label {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.ac-vacio {
+  text-align: center;
+  color: #94a3b8;
+}
+
+.ac-instrucciones {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #cbd5e1;
+  padding-left: 20px;
+}
+
+/* ---------- Formularios y botones ---------- */
+.ac-input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #fff;
   font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
+  margin: 10px 0 16px;
+  outline: none;
+}
+.ac-input:focus { border-color: #38bdf8; }
 
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+.ac-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s, opacity 0.2s;
+}
+.ac-btn:hover { opacity: 0.92; }
+.ac-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.ac-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ac-btn-sec {
+  background: #334155;
+  margin-top: 8px;
 }
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+.ac-btn-chico {
+  width: auto;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin: 0;
 }
 
-#center {
+/* ---------- Mapa de niveles ---------- */
+.ac-mapa-header {
   display: flex;
-  flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+.ac-nombre {
+  margin: 0;
+  color: #38bdf8;
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 22px;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.ac-guardado {
+  font-size: 11px;
+  color: #4ade80;
 }
 
-#next-steps ul {
-  list-style: none;
-  padding: 0;
+.ac-botonera {
   display: flex;
   gap: 8px;
-  margin: 32px 0 0;
+  margin: 14px 0;
+}
+.ac-botonera .ac-btn { flex: 1; }
 
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+.ac-mapa-camino {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 6px 4px;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.ac-nodo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 62%;
+  transition: transform 0.15s;
+}
+.ac-nodo:hover:not(.bloqueado) { transform: scale(1.04); }
+.ac-nodo.bloqueado { cursor: not-allowed; opacity: 0.45; }
+
+.ac-nodo-circulo {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  background: #475569;
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.ac-nodo.completo .ac-nodo-circulo { background: radial-gradient(circle at 35% 30%, #86efac, #16a34a); }
+.ac-nodo.actual .ac-nodo-circulo {
+  background: radial-gradient(circle at 35% 30%, #7dd3fc, #2563eb);
+  animation: ac-latido 1.4s ease-in-out infinite;
 }
 
-.ticks {
-  position: relative;
+@keyframes ac-latido {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6); }
+  50% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+}
+
+.ac-nodo-titulo { font-weight: 800; font-size: 14px; }
+.ac-nodo-desc { font-size: 11px; color: #94a3b8; }
+
+.ac-estrellas {
+  color: #facc15;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+.ac-estrellas.grande {
+  font-size: 40px;
+  animation: ac-aparecer 0.5s ease-out;
+}
+
+/* ---------- Tabla de moléculas ---------- */
+.ac-lista-moleculas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.ac-molecula-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.ac-molecula-formula {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.ac-molecula-nombre { font-size: 12px; color: #94a3b8; }
+
+.ac-molecula-atomos {
+  display: flex;
+  gap: 4px;
+}
+
+.ac-mini-atomo {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.6), transparent 45%), var(--color);
+}
+
+/* ---------- Pantalla de juego ---------- */
+.ac-box-juego {
+  padding: 16px;
+  position: relative; /* para que el cartel de resultado quede encima del tablero */
+}
+
+.ac-juego-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ac-nivel-etiqueta {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ac-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ac-stat {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.ac-stat span { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+.ac-stat strong { font-size: 17px; }
+
+.ac-objetivo-grande {
+  text-align: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+.ac-objetivo-grande .simbolo {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.ac-objetivo-grande .desc { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+
+.ac-barra-fondo {
   width: 100%;
+  height: 10px;
+  background: #1e293b;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.ac-barra-relleno {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22d3ee);
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.ac-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.ac-leyenda-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #cbd5e1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.ac-leyenda-punto { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+.ac-mensaje {
+  text-align: center;
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+.ac-mensaje.exito { color: #4ade80; }
+.ac-mensaje.error { color: #f87171; }
+.ac-combo { color: #fb923c; }
+
+/* ---------- Tablero y átomos ---------- */
+.ac-tablero {
+  position: relative; /* para ubicar los carteles de puntos encima */
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #334155;
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: inset 0 0 30px rgba(56, 189, 248, 0.08);
+}
+
+.ac-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  --hueco: 8px; /* espacio entre fichas (también lo usa la animación de deslizar) */
+  gap: var(--hueco);
+  user-select: none;
+  touch-action: none; /* que el dedo no haga scroll mientras se juega */
+}
+
+/* Cada átomo es una esfera: un brillo blanco arriba a la izquierda,
+   el color del elemento (--color) y una sombra abajo para dar volumen */
+.ac-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0.15) 22%, transparent 45%),
+    var(--color);
+  box-shadow: inset -4px -6px 10px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.35);
+  animation: ac-caer 0.3s ease-out;
+}
+
+/* Órbita de electrones alrededor del átomo */
+.ac-cell::before {
+  content: "";
+  position: absolute;
+  inset: 14% -8%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+
+@keyframes ac-caer {
+  from { transform: translateY(-24px); opacity: 0.3; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Ficha que se está deslizando hacia el lugar de la otra */
+.ac-cell.moviendo {
+  transition: transform 0.18s ease-in-out;
+  z-index: 5;
+}
+
+.ac-cell.apretada {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+  cursor: grabbing;
+}
+
+/* Brillo al formar una molécula, justo antes de desaparecer */
+.ac-cell.acierto {
+  animation: ac-brillo 0.3s ease-in-out;
+  box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes ac-brillo {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(0.85); }
+}
+
+/* Animación del poder: una ola que barre el tablero de izquierda a derecha */
+.ac-grid.barriendo .ac-cell {
+  animation: ac-barrido 0.45s ease-in forwards;
+}
+
+@keyframes ac-barrido {
+  0% { transform: scale(1); filter: brightness(1); }
+  40% { transform: scale(1.25); filter: brightness(2.2); box-shadow: 0 0 20px 8px #facc15; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+/* Cartel "+150" que sube y se desvanece */
+.ac-cartel {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fde047;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  animation: ac-subir 0.9s ease-out forwards;
+}
+
+@keyframes ac-subir {
+  from { opacity: 1; margin-top: 0; }
+  to { opacity: 0; margin-top: -50px; }
+}
+
+/* ---------- Poder especial ---------- */
+.ac-poder { margin-top: 12px; }
+
+.ac-poder-barra {
+  height: 8px;
+  background: #0f172a;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.ac-poder-relleno {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #facc15);
+  transition: width 0.4s ease;
+}
+
+.ac-btn-poder {
+  background: linear-gradient(135deg, #78350f, #a16207);
+}
+.ac-btn-poder.listo {
+  background: linear-gradient(135deg, #f59e0b, #facc15);
+  color: #1f2937;
+  animation: ac-latido-poder 1s ease-in-out infinite;
+}
+
+@keyframes ac-latido-poder {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+  50% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+}
+
+/* ---------- Resultado del nivel ---------- */
+.ac-resultado {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  background: rgba(11, 17, 32, 0.88);
+  border-radius: 24px;
+  animation: ac-aparecer 0.3s ease-out;
+}
+.ac-resultado h3 { margin: 6px 0; font-family: "Fredoka", "Inter", sans-serif; font-size: 24px; }
+.ac-resultado p { font-size: 13px; color: #cbd5e1; }
+
+/* ---------- Ranking ---------- */
+.ac-lb-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: #0f172a;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.ac-lb-row.primero { border-left: 4px solid #f59e0b; }
+.ac-lb-puesto { font-weight: 800; color: #38bdf8; margin-right: 8px; }
+.ac-lb-nivel { color: #94a3b8; margin-right: 12px; font-size: 12px; }
+
+/* ---------- Celulares ---------- */
+@media (max-width: 420px) {
+  .ac-box { padding: 16px; }
+  .ac-cell { font-size: 17px; }
+  .ac-grid { --hueco: 6px; }
+  .ac-nodo { width: 70%; }
 }

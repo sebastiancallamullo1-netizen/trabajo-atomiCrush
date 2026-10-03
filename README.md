@@ -1,16 +1,35 @@
-# React + Vite
+# AtomiCrush — Juego educativo de Química
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Proyecto de PISWD (Prof. Diego Callamullo) — 7mo año.
+Integrantes: Santiago Battiston, Sebastián Callamullo, Ignacio Kozak, Dylan Ugarte.
 
-Currently, two official plugins are available:
+## Cómo abrir el juego
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Opción 1 (sin instalar nada):** abrir con doble clic el archivo `index.html` (o directamente `docs/index.html`).
+Es la versión ya armada del juego, todo en un solo archivo, y funciona en cualquier navegador.
 
-## React Compiler
+**Opción 2 (para programar):**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+y entrar a `http://localhost:5173`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Después de hacer cambios en el código, correr `npm run build` para actualizar la versión de `docs/`.
+
+## Cómo está organizado el código
+
+| Archivo | Qué tiene |
+|---|---|
+| `src/datos.js` | Elementos, moléculas válidas y los 10 niveles |
+| `src/logica.js` | Generación del tablero, gravedad, detección de moléculas en línea, poder Catalizador, estrellas |
+| `src/firebase.js` | Base de datos: guardar/cargar el progreso de cada jugador y el ranking |
+| `src/App.jsx` | Pantallas, estados del juego y eventos del usuario |
+| `src/App.css` | Estilos y animaciones |
+
+## Base de datos (Firebase)
+
+El progreso se guarda en Firebase Firestore (colección `jugadores`).
+Mientras `firebaseConfig` en `src/firebase.js` esté vacío, el juego guarda en el navegador (localStorage) y funciona igual.

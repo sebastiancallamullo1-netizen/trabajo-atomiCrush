@@ -1,10 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>atomicrush</title>
+    <title>AtomiCrush</title>
+    <script>
+      // Si alguien abre este archivo con doble clic (sin "npm run dev"),
+      // el navegador no puede leer el código de src/. En ese caso lo
+      // mandamos a la versión ya armada que está en docs/index.html.
+      if (location.protocol === "file:" && !location.pathname.endsWith("/docs/index.html")) {
+        location.replace("docs/index.html");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
