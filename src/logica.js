@@ -1,4 +1,4 @@
-import { MOLECULAS_DICCIONARIO } from "./datos.js";
+import { MOLECULAS_DICCIONARIO, GASES_NOBLES } from "./datos.js";
 
 /* ============================================================
    LÓGICA DEL TABLERO
@@ -9,13 +9,23 @@ import { MOLECULAS_DICCIONARIO } from "./datos.js";
 export const FILAS = 6;
 export const COLUMNAS = 6;
 
+// Probabilidad de que un átomo nuevo sea uno de los que pide el nivel.
+// Más alto = más fácil. El resto de las veces se elige parejo del pool.
+export const PROBABILIDAD_OBJETIVO = 0.3;
+
 // Puntos que hay que sumar en un nivel para cargar el poder "Catalizador"
-export const PUNTOS_PARA_PODER = 1000;
+export const PUNTOS_PARA_PODER = 1500;
 
 let contadorId = 0;
 
 // Cada átomo tiene un id único: React lo usa como "key" para saber
 // qué ficha es nueva (y animar su caída) y cuál ya estaba.
+// Como los ids van subiendo, un átomo con id mayor a ultimoIdCreado()
+// (tomado antes de la gravedad) es un átomo que acaba de caer.
+export function ultimoIdCreado() {
+  return contadorId;
+}
+
 function crearAtomo(simbolo) {
   contadorId += 1;
   return { id: contadorId, elemento: simbolo };
@@ -55,13 +65,20 @@ function obtenerElementosObjetivo(nivelConfig) {
   return [];
 }
 
-// Elige un elemento al azar del pool del nivel, pero con más chance (42%)
+// Elige un elemento al azar del pool del nivel, pero con más chance
 // de que sea uno de los elementos "objetivo" del nivel. Si eligiera
 // siempre parejo entre todo el pool, algunos niveles serían casi
 // imposibles de completar con los movimientos disponibles.
+// En los niveles más avanzados también pueden aparecer gases nobles
+// (probGasNoble), que funcionan como obstáculos.
 function elegirElementoDelPool(pool, nivelConfig) {
+  const probGasNoble = nivelConfig.probGasNoble || 0;
+  if (Math.random() < probGasNoble) {
+    return GASES_NOBLES[Math.floor(Math.random() * GASES_NOBLES.length)];
+  }
+
   const objetivo = obtenerElementosObjetivo(nivelConfig);
-  if (objetivo.length > 0 && Math.random() < 0.42) {
+  if (objetivo.length > 0 && Math.random() < PROBABILIDAD_OBJETIVO) {
     return objetivo[Math.floor(Math.random() * objetivo.length)];
   }
   return pool[Math.floor(Math.random() * pool.length)];
@@ -105,6 +122,12 @@ export function aplicarGravedad(grillaConHuecos, nivelConfig) {
     }
   }
   return nuevaGrilla;
+}
+
+// Los gases nobles (He, Ne) tienen su última capa de electrones completa,
+// por eso no reaccionan con nada: no forman moléculas y no se pueden mover.
+export function esGasNoble(simbolo) {
+  return GASES_NOBLES.includes(simbolo);
 }
 
 // Devuelve una copia de la grilla con dos celdas intercambiadas
@@ -161,7 +184,8 @@ function armarTramo(filaInicio, colInicio, largo, esHorizontal) {
 // seguidos (de 2 a 5, como en Candy Crush) que forme una molécula válida
 // y que pase por esa celda. Si hay varias, se queda con la más larga.
 // Ejemplo: en la fila  H O H  hay una molécula de agua.
-export function buscarMoleculaEnLinea(grilla, fila, col) {
+// "filtro" es opcional: una función que dice qué moléculas se aceptan.
+export function buscarMoleculaEnLinea(grilla, fila, col, filtro = null) {
   let mejor = null;
 
   for (let largo = 2; largo <= 5; largo++) {
@@ -173,6 +197,7 @@ export function buscarMoleculaEnLinea(grilla, fila, col) {
       [horizontal, vertical].forEach((celdas) => {
         if (!celdas) return;
         const molecula = verificarCualquierMolecula(celdas, grilla);
+        if (molecula && filtro && !filtro(molecula)) return;
         if (molecula && (!mejor || celdas.length > mejor.celdas.length)) {
           mejor = { molecula, celdas };
         }
@@ -192,8 +217,9 @@ export function buscarMoleculaPorIntercambio(grillaNueva, a, b) {
 }
 
 // Prueba todos los intercambios posibles (cada celda con la de su derecha
-// y la de abajo). Si ninguno forma una molécula, el tablero quedó trabado.
-export function hayJugadaPosible(grilla) {
+// y la de abajo) y devuelve el primero que forma una molécula, o null si
+// no hay ninguno (el tablero quedó trabado). También se usa para la pista.
+export function buscarJugadaPosible(grilla) {
   for (let fila = 0; fila < FILAS; fila++) {
     for (let col = 0; col < COLUMNAS; col++) {
       const vecinos = [
@@ -203,25 +229,73 @@ export function hayJugadaPosible(grilla) {
       for (const vecino of vecinos) {
         if (vecino.fila >= FILAS || vecino.col >= COLUMNAS) continue;
         const a = { fila, col };
-        if (grilla[fila][col].elemento === grilla[vecino.fila][vecino.col].elemento) continue;
+        const elementoA = grilla[fila][col].elemento;
+        const elementoB = grilla[vecino.fila][vecino.col].elemento;
+        if (elementoA === elementoB || esGasNoble(elementoA) || esGasNoble(elementoB)) continue;
         const copia = intercambiarCeldas(grilla, a, vecino);
-        if (buscarMoleculaPorIntercambio(copia, a, vecino)) return true;
+        if (buscarMoleculaPorIntercambio(copia, a, vecino)) return { a, b: vecino };
       }
     }
   }
+  return null;
+}
+
+// Gases nobles pegados (arriba, abajo, izquierda o derecha) a las celdas
+// de una molécula: la reacción los libera y desaparecen junto con ella.
+export function buscarGasesVecinos(grilla, celdas) {
+  const gases = [];
+  celdas.forEach(({ fila, col }) => {
+    const vecinos = [
+      { fila: fila - 1, col },
+      { fila: fila + 1, col },
+      { fila, col: col - 1 },
+      { fila, col: col + 1 },
+    ];
+    vecinos.forEach((v) => {
+      if (v.fila < 0 || v.fila >= FILAS || v.col < 0 || v.col >= COLUMNAS) return;
+      const yaEsta = gases.some((g) => g.fila === v.fila && g.col === v.col);
+      if (esGasNoble(grilla[v.fila][v.col].elemento) && !yaEsta) gases.push(v);
+    });
+  });
+  return gases;
+}
+
+// ¿Esta molécula puede formarse sola en una reacción en cadena?
+// Tiene que servir para la meta del nivel y tener 3 átomos o más:
+// si valieran las de 2 (H2, O2, N2), se formarían todo el tiempo.
+export function sirveParaCadena(molecula, nivelConfig) {
+  const cantidadAtomos = Object.values(molecula.atomosNecesarios).reduce((suma, n) => suma + n, 0);
+  if (cantidadAtomos < 3) return false;
+  if (nivelConfig.tipo === "FORMULA") return molecula.formula === nivelConfig.metaFormula;
+  if (nivelConfig.tipo === "ELEMENTO") return molecula.atomosNecesarios[nivelConfig.metaElemento] !== undefined;
   return false;
+}
+
+// Reacción en cadena: busca una línea que forme una molécula que sirva
+// para la meta y que pase por algún átomo recién caído (id mayor a idAnterior),
+// igual que en Candy Crush, donde solo cuentan las fichas que se movieron.
+// Devuelve la primera que encuentra, o null.
+export function buscarMoleculaEnCadena(grilla, nivelConfig, idAnterior) {
+  for (let fila = 0; fila < FILAS; fila++) {
+    for (let col = 0; col < COLUMNAS; col++) {
+      if (grilla[fila][col].id <= idAnterior) continue;
+      const resultado = buscarMoleculaEnLinea(grilla, fila, col, (mol) => sirveParaCadena(mol, nivelConfig));
+      if (resultado) return resultado;
+    }
+  }
+  return null;
 }
 
 // Poder "Catalizador": mira TODO el tablero y calcula cuánto avanza la meta
 // con los átomos que hay. Para no regalar el nivel, avanza como mucho
-// un tercio de la meta.
+// un cuarto de la meta.
 export function calcularAvancePoder(grilla, nivelConfig, moleculasUsadas) {
   const todasLasCeldas = [];
   for (let f = 0; f < FILAS; f++) {
     for (let c = 0; c < COLUMNAS; c++) todasLasCeldas.push({ fila: f, col: c });
   }
   const conteo = contarAtomos(todasLasCeldas, grilla);
-  const tope = Math.ceil(nivelConfig.metaCantidad / 3);
+  const tope = Math.ceil(nivelConfig.metaCantidad / 4);
 
   if (nivelConfig.tipo === "FORMULA") {
     // Cuántas moléculas enteras alcanzan con lo que hay: manda el elemento

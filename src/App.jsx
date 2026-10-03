@@ -9,26 +9,50 @@ import {
   aplicarGravedad,
   intercambiarCeldas,
   buscarMoleculaPorIntercambio,
-  hayJugadaPosible,
+  buscarJugadaPosible,
+  buscarGasesVecinos,
+  buscarMoleculaEnCadena,
+  ultimoIdCreado,
+  esGasNoble,
   calcularAvancePoder,
   calcularEstrellas,
   formatearTiempo,
 } from "./logica.js";
 import { cargarJugador, guardarJugador, cargarRanking, usandoFirebase } from "./firebase.js";
+import { sonar, estaSilenciado, alternarSonido } from "./sonidos.js";
 
 /* ============================================================
    ATOMICRUSH - Juego Educativo de Química
-   Pantallas: login, instrucciones, mapa, moléculas, juego y ranking
+   Pantallas: login, instrucciones, mapa, álbum, juego y ranking
    ============================================================ */
 
 // Cuánto tarda la animación de deslizar una ficha (en milisegundos)
 const DURACION_DESLIZAR = 180;
 // Cuántos píxeles hay que arrastrar para que cuente como movimiento
 const DISTANCIA_MINIMA = 20;
+// Segundos sin mover nada hasta que aparece la pista
+const SEGUNDOS_PISTA = 6;
+// Máximo de moléculas que se pueden formar solas seguidas
+const MAXIMO_CADENA = 3;
 
 // Muestra de 0 a 3 estrellas, por ejemplo "★★☆"
 function textoEstrellas(cantidad) {
   return "★".repeat(cantidad) + "☆".repeat(3 - cantidad);
+}
+
+// Dibuja los átomos de una molécula como bolitas de colores
+function MiniAtomos({ molecula }) {
+  return (
+    <div className="ac-molecula-atomos">
+      {Object.entries(molecula.atomosNecesarios).map(([simbolo, cantidad]) =>
+        Array.from({ length: cantidad }).map((_, i) => (
+          <span key={simbolo + i} className="ac-mini-atomo" style={{ "--color": ELEMENTOS[simbolo].color }}>
+            {simbolo}
+          </span>
+        ))
+      )}
+    </div>
+  );
 }
 
 export default function App() {
@@ -39,7 +63,10 @@ export default function App() {
   const [nivelMaximo, setNivelMaximo] = useState(1);
   // Mejor puntaje y estrellas de cada nivel: { 1: { puntos, estrellas }, ... }
   const [progresoNiveles, setProgresoNiveles] = useState({});
+  // Fórmulas de las moléculas que el jugador ya descubrió: ["H2O", "O2", ...]
+  const [album, setAlbum] = useState([]);
   const [ranking, setRanking] = useState([]);
+  const [silencio, setSilencio] = useState(estaSilenciado());
 
   // ---------- Partida en curso ----------
   const [nivelIndex, setNivelIndex] = useState(0);
@@ -56,6 +83,10 @@ export default function App() {
   const [combo, setCombo] = useState(0);
   const [estrellasGanadas, setEstrellasGanadas] = useState(0);
   const [cargaPoder, setCargaPoder] = useState(0);
+  // Moléculas recién descubiertas que falta mostrar. Es una fila (cola):
+  // si en una cadena se descubren dos, se muestran una después de la otra.
+  const [tarjetas, setTarjetas] = useState([]);
+  const [pista, setPista] = useState(null); // jugada sugerida { a, b }
 
   // ---------- Estado de las animaciones ----------
   const [origenArrastre, setOrigenArrastre] = useState(null); // dónde se apretó
@@ -68,11 +99,12 @@ export default function App() {
   const nivelConfig = MAPA_NIVELES[nivelIndex];
   const juegoTerminado = nivelCompletado || sinMovimientos || sinTiempo;
   const poderListo = cargaPoder >= PUNTOS_PARA_PODER;
+  const tarjeta = tarjetas.length > 0 ? tarjetas[0] : null;
 
-  // Cronómetro del nivel: baja de a 1 segundo mientras se está jugando
-  // y todavía no se ganó, se quedó sin movimientos o se acabó el tiempo.
+  // Cronómetro del nivel: baja de a 1 segundo mientras se está jugando.
+  // Se frena si se ganó, se perdió o si está abierta la tarjeta de una molécula nueva.
   useEffect(() => {
-    if (pantalla !== "jugando" || nivelCompletado || sinMovimientos || sinTiempo) return;
+    if (pantalla !== "jugando" || nivelCompletado || sinMovimientos || sinTiempo || tarjeta) return;
 
     const intervalo = setInterval(() => {
       setTiempoRestante((t) => {
@@ -87,7 +119,21 @@ export default function App() {
     // Función de limpieza: para el cronómetro al desmontar o al cambiar
     // de nivel/pantalla, para que no queden intervalos corriendo de más.
     return () => clearInterval(intervalo);
-  }, [pantalla, nivelCompletado, sinMovimientos, sinTiempo, nivelIndex]);
+  }, [pantalla, nivelCompletado, sinMovimientos, sinTiempo, nivelIndex, tarjeta]);
+
+  // Pista: si pasan SEGUNDOS_PISTA sin que el jugador haga nada, se marca
+  // una jugada posible. Cada vez que cambia la grilla o el jugador toca una
+  // ficha (la pista vuelve a null), el reloj empieza de nuevo.
+  useEffect(() => {
+    if (pantalla !== "jugando" || bloqueado || juegoTerminado || tarjeta || pista) return;
+    const espera = setTimeout(() => setPista(buscarJugadaPosible(grilla)), SEGUNDOS_PISTA * 1000);
+    return () => clearTimeout(espera);
+  }, [grilla, pantalla, bloqueado, juegoTerminado, tarjeta, pista]);
+
+  // Sonido de derrota cuando se acaban los movimientos o el tiempo
+  useEffect(() => {
+    if (sinMovimientos || sinTiempo) sonar("derrota");
+  }, [sinMovimientos, sinTiempo]);
 
   // ---------- Login y progreso guardado ----------
   const handleLogin = async (e) => {
@@ -103,10 +149,12 @@ export default function App() {
       // Jugador que ya había jugado: recuperamos su progreso y va directo al mapa
       setNivelMaximo(datos.nivelMaximo);
       setProgresoNiveles(datos.niveles || {});
+      setAlbum(datos.album || []);
       setPantalla("mapa");
     } else {
       setNivelMaximo(1);
       setProgresoNiveles({});
+      setAlbum([]);
       setPantalla("instrucciones");
     }
   };
@@ -115,6 +163,7 @@ export default function App() {
     setUsuario("");
     setNivelMaximo(1);
     setProgresoNiveles({});
+    setAlbum([]);
     setPantalla("login");
   };
 
@@ -125,8 +174,29 @@ export default function App() {
     setPantalla("ranking");
   };
 
-  // Guarda el resultado del nivel (si mejoró) en la base de datos
-  const guardarResultado = (puntosFinales, estrellas) => {
+  // Guarda en la base de datos todo lo del jugador. "cambios" trae los
+  // datos nuevos (por ejemplo el álbum actualizado); el resto se toma
+  // del estado actual.
+  const guardarDatos = (cambios) => {
+    const datos = {
+      usuario: usuario.trim(),
+      nivelMaximo,
+      niveles: progresoNiveles,
+      album,
+      ...cambios,
+    };
+    // El puntaje total es la suma del mejor puntaje de cada nivel.
+    // Así repetir el nivel 1 muchas veces no infla el ranking.
+    let puntosTotales = 0;
+    Object.values(datos.niveles).forEach((nivel) => {
+      puntosTotales += nivel.puntos;
+    });
+    datos.puntosTotales = puntosTotales;
+    guardarJugador(usuario.trim(), datos);
+  };
+
+  // Al ganar: se guarda el resultado del nivel si mejoró el anterior
+  const guardarResultado = (puntosFinales, estrellas, albumActual) => {
     const id = nivelConfig.id;
     const anterior = progresoNiveles[id] || { puntos: 0, estrellas: 0 };
     const nuevoProgreso = {
@@ -137,22 +207,9 @@ export default function App() {
       },
     };
     const nuevoMaximo = Math.max(nivelMaximo, id + 1);
-
-    // El puntaje total es la suma del mejor puntaje de cada nivel.
-    // Así repetir el nivel 1 muchas veces no infla el ranking.
-    let puntosTotales = 0;
-    Object.values(nuevoProgreso).forEach((nivel) => {
-      puntosTotales += nivel.puntos;
-    });
-
     setProgresoNiveles(nuevoProgreso);
     setNivelMaximo(nuevoMaximo);
-    guardarJugador(usuario.trim(), {
-      usuario: usuario.trim(),
-      nivelMaximo: nuevoMaximo,
-      puntosTotales,
-      niveles: nuevoProgreso,
-    });
+    guardarDatos({ niveles: nuevoProgreso, nivelMaximo: nuevoMaximo, album: albumActual });
   };
 
   // ---------- Comienzo de un nivel ----------
@@ -175,13 +232,15 @@ export default function App() {
     setDesplazamientos({});
     setCeldasAcierto([]);
     setCarteles([]);
+    setTarjetas([]);
+    setPista(null);
     setMensaje({ texto: "", tipo: "" });
     setPantalla("jugando");
   };
 
   const mostrarMensaje = (texto, tipo) => {
     setMensaje({ texto, tipo });
-    if (tipo === "error") setTimeout(() => setMensaje({ texto: "", tipo: "" }), 1200);
+    if (tipo === "error") setTimeout(() => setMensaje({ texto: "", tipo: "" }), 1400);
   };
 
   // Cartel "+150" que aparece sobre las fichas y se va solo
@@ -193,7 +252,7 @@ export default function App() {
       sumaCols += col;
     });
     const nuevo = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       texto,
       fila: sumaFilas / celdas.length,
       col: sumaCols / celdas.length,
@@ -201,6 +260,8 @@ export default function App() {
     setCarteles((actuales) => [...actuales, nuevo]);
     setTimeout(() => setCarteles((actuales) => actuales.filter((c) => c.id !== nuevo.id)), 900);
   };
+
+  const cambiarSonido = () => setSilencio(alternarSonido());
 
   // ---------- Intercambio de fichas (como Candy Crush) ----------
   // Mueve visualmente las fichas a y b. cantidad = 1 las lleva al lugar
@@ -214,6 +275,14 @@ export default function App() {
 
   const intentarIntercambio = (a, b) => {
     if (bloqueado || juegoTerminado) return;
+    setPista(null);
+
+    // Los gases nobles no reaccionan: no se pueden mover
+    if (esGasNoble(grilla[a.fila][a.col].elemento) || esGasNoble(grilla[b.fila][b.col].elemento)) {
+      sonar("error");
+      mostrarMensaje("🚫 Los gases nobles no reaccionan: se liberan formando una molécula al lado", "error");
+      return;
+    }
 
     // Probamos el intercambio en una copia de la grilla
     const grillaNueva = intercambiarCeldas(grilla, a, b);
@@ -229,6 +298,7 @@ export default function App() {
         // y no se gasta el movimiento (igual que en Candy Crush)
         moverFichas(a, b, 0);
         setCombo(0);
+        sonar("error");
         mostrarMensaje("❌ Ese movimiento no forma ninguna molécula", "error");
         setTimeout(() => {
           setDesplazamientos({});
@@ -237,84 +307,148 @@ export default function App() {
         return;
       }
 
-      // Forma una molécula: el intercambio queda y las fichas brillan un momento
+      // Forma una molécula: el intercambio queda y se procesa
       setDesplazamientos({});
       setGrilla(grillaNueva);
-      setCeldasAcierto(resultado.celdas);
-      setTimeout(() => {
-        setCeldasAcierto([]);
-        completarFormacion(grillaNueva, resultado);
-        setBloqueado(false);
-      }, 300);
+
+      // "estado" lleva los valores de la jugada de un paso al siguiente
+      // (los estados de React no se actualizan hasta el próximo render)
+      const estado = {
+        movimientos: movimientosRestantes - 1,
+        progreso: progresoObjetivo,
+        puntos,
+        combo,
+        carga: cargaPoder,
+        usadas: moleculasDistintasUsadas,
+        album,
+      };
+      procesarMolecula(grillaNueva, resultado, estado, 0);
     }, DURACION_DESLIZAR);
   };
 
-  // Acá se aplica el resultado real: movimientos, progreso, combo, puntos,
-  // carga del poder y la desaparición de los átomos con gravedad.
-  const completarFormacion = (grillaActual, resultado) => {
-    const { molecula, celdas } = resultado;
-    const nuevosMovimientos = movimientosRestantes - 1;
-    setMovimientosRestantes(nuevosMovimientos);
+  // Hace brillar la molécula (y los gases nobles pegados), la aplica y
+  // después revisa si los átomos que cayeron formaron otra molécula de
+  // la meta: eso es la reacción en cadena. numeroCadena = 0 es la jugada
+  // del jugador, 1 o más son moléculas que se formaron solas.
+  const procesarMolecula = (grillaActual, resultado, estado, numeroCadena) => {
+    const gases = buscarGasesVecinos(grillaActual, resultado.celdas);
+    setCeldasAcierto([...resultado.celdas, ...gases]);
 
-    let avanceGoal = 0;
-    if (nivelConfig.tipo === "FORMULA" && molecula.formula === nivelConfig.metaFormula) {
-      avanceGoal = 1;
-    } else if (nivelConfig.tipo === "ELEMENTO") {
-      celdas.forEach(({ fila, col }) => {
-        if (grillaActual[fila][col].elemento === nivelConfig.metaElemento) avanceGoal++;
-      });
-    } else if (nivelConfig.tipo === "MULTIPLES_MOLECULAS") {
-      const nuevoSet = new Set(moleculasDistintasUsadas);
-      nuevoSet.add(molecula.formula);
-      setMoleculasDistintasUsadas(nuevoSet);
-      avanceGoal = nuevoSet.size - progresoObjetivo;
-    }
+    setTimeout(() => {
+      setCeldasAcierto([]);
+      const idAnterior = ultimoIdCreado();
+      const { grillaNueva, estadoNuevo } = aplicarMolecula(grillaActual, resultado, gases, estado, numeroCadena);
+      setGrilla(grillaNueva);
 
-    // Puntos: 50 por cada átomo de la molécula (CH4 vale más que H2).
-    // Combo: cada acierto seguido suma 15% extra, con tope de +75%.
-    const comboNuevo = combo + 1;
-    const bonusCombo = Math.min(comboNuevo - 1, 5) * 0.15;
-    const puntosGanados = Math.round(celdas.length * 50 * (1 + bonusCombo));
-    setCombo(comboNuevo);
+      if (estadoNuevo.progreso >= nivelConfig.metaCantidad) {
+        ganarNivel(estadoNuevo.puntos, estadoNuevo.movimientos, estadoNuevo.album);
+        setBloqueado(false);
+        return;
+      }
 
-    const nuevoProgreso = progresoObjetivo + avanceGoal;
-    const nuevosPuntos = puntos + puntosGanados;
-    setProgresoObjetivo(nuevoProgreso);
-    setPuntos(nuevosPuntos);
-    setCargaPoder(Math.min(PUNTOS_PARA_PODER, cargaPoder + puntosGanados));
-    mostrarCartel(`+${puntosGanados}`, celdas);
-
-    // Sacamos los átomos usados y caen nuevos
-    const grillaConHuecos = grillaActual.map((f) => [...f]);
-    celdas.forEach(({ fila, col }) => {
-      grillaConHuecos[fila][col] = null;
-    });
-    let grillaFinal = aplicarGravedad(grillaConHuecos, nivelConfig);
-
-    const textoCombo = comboNuevo > 1 ? ` 🔥 x${comboNuevo}` : "";
-    mostrarMensaje(`✅ ¡Formaste ${molecula.nombre} (${molecula.formula})!${textoCombo}`, "exito");
-
-    // Si después de caer las fichas no queda ninguna jugada, se mezcla solo
-    if (!hayJugadaPosible(grillaFinal)) {
-      grillaFinal = generarGrillaInicial(nivelConfig);
-      mostrarMensaje("🔄 No quedaban jugadas: se mezcló el tablero", "exito");
-    }
-    setGrilla(grillaFinal);
-
-    if (nuevoProgreso >= nivelConfig.metaCantidad) {
-      ganarNivel(nuevosPuntos, nuevosMovimientos);
-    } else if (nuevosMovimientos <= 0) {
-      setSinMovimientos(true);
-    }
+      // Esperamos a que caigan las fichas y buscamos una reacción en cadena
+      setTimeout(() => {
+        const cadena = numeroCadena < MAXIMO_CADENA ? buscarMoleculaEnCadena(grillaNueva, nivelConfig, idAnterior) : null;
+        if (cadena) {
+          procesarMolecula(grillaNueva, cadena, estadoNuevo, numeroCadena + 1);
+        } else {
+          terminarJugada(grillaNueva, estadoNuevo);
+        }
+      }, 350);
+    }, 300);
   };
 
-  const ganarNivel = (puntosDelNivel, movimientosQueSobraron) => {
+  // Aplica el resultado de una molécula: progreso, combo, puntos, poder,
+  // álbum y saca los átomos (más los gases liberados) con gravedad.
+  const aplicarMolecula = (grillaActual, resultado, gases, estado, numeroCadena) => {
+    const { molecula, celdas } = resultado;
+
+    let avance = 0;
+    if (nivelConfig.tipo === "FORMULA" && molecula.formula === nivelConfig.metaFormula) {
+      avance = 1;
+    } else if (nivelConfig.tipo === "ELEMENTO") {
+      celdas.forEach(({ fila, col }) => {
+        if (grillaActual[fila][col].elemento === nivelConfig.metaElemento) avance++;
+      });
+    } else if (nivelConfig.tipo === "MULTIPLES_MOLECULAS" && !estado.usadas.has(molecula.formula)) {
+      avance = 1;
+    }
+    const usadas = new Set(estado.usadas);
+    usadas.add(molecula.formula);
+
+    // Puntos: 50 por cada átomo de la molécula y 25 por cada gas liberado.
+    // Combo: cada acierto seguido suma 15% extra, con tope de +75%.
+    const comboNuevo = estado.combo + 1;
+    const bonusCombo = Math.min(comboNuevo - 1, 5) * 0.15;
+    const puntosGanados = Math.round((celdas.length * 50 + gases.length * 25) * (1 + bonusCombo));
+
+    // Álbum: si es la primera vez que forma esta molécula, se agrega
+    const esNueva = !estado.album.includes(molecula.formula);
+    const albumNuevo = esNueva ? [...estado.album, molecula.formula] : estado.album;
+
+    const estadoNuevo = {
+      ...estado,
+      progreso: estado.progreso + avance,
+      puntos: estado.puntos + puntosGanados,
+      combo: comboNuevo,
+      carga: Math.min(PUNTOS_PARA_PODER, estado.carga + puntosGanados),
+      usadas,
+      album: albumNuevo,
+    };
+
+    // Actualizamos lo que se ve en pantalla
+    setMovimientosRestantes(estadoNuevo.movimientos);
+    setProgresoObjetivo(estadoNuevo.progreso);
+    setPuntos(estadoNuevo.puntos);
+    setCombo(comboNuevo);
+    setCargaPoder(estadoNuevo.carga);
+    setMoleculasDistintasUsadas(usadas);
+    mostrarCartel(`+${puntosGanados}`, celdas);
+
+    let texto = `✅ ¡Formaste ${molecula.nombre} (${molecula.formula})!`;
+    if (numeroCadena > 0) texto = `⛓️ ¡Reacción en cadena! Se formó ${molecula.formula} solo`;
+    if (comboNuevo > 1) texto += ` 🔥 x${comboNuevo}`;
+    if (gases.length > 0) texto += ` · Liberaste ${gases.length} gas noble`;
+    mostrarMensaje(texto, "exito");
+
+    sonar(numeroCadena > 0 ? "cadena" : "acierto", comboNuevo);
+    if (gases.length > 0) sonar("gas");
+
+    if (esNueva) {
+      setAlbum(albumNuevo);
+      setTarjetas((actuales) => [...actuales, molecula]);
+      sonar("descubrir");
+      guardarDatos({ album: albumNuevo });
+    }
+
+    // Sacamos los átomos usados y los gases liberados, y caen nuevos
+    const grillaConHuecos = grillaActual.map((f) => [...f]);
+    [...celdas, ...gases].forEach(({ fila, col }) => {
+      grillaConHuecos[fila][col] = null;
+    });
+    return { grillaNueva: aplicarGravedad(grillaConHuecos, nivelConfig), estadoNuevo };
+  };
+
+  // Cuando termina la jugada (y la cadena, si hubo): ¿quedan movimientos?
+  // ¿quedan jugadas posibles? Si no, se mezcla el tablero solo.
+  const terminarJugada = (grillaActual, estado) => {
+    if (estado.movimientos <= 0) {
+      setSinMovimientos(true);
+    } else if (!buscarJugadaPosible(grillaActual)) {
+      setGrilla(generarGrillaInicial(nivelConfig));
+      mostrarMensaje("🔄 No quedaban jugadas: se mezcló el tablero", "exito");
+    }
+    setBloqueado(false);
+  };
+
+  const ganarNivel = (puntosDelNivel, movimientosQueSobraron, albumActual) => {
     const estrellas = calcularEstrellas(movimientosQueSobraron, nivelConfig.movimientos);
     const puntosFinales = puntosDelNivel + 300; // bonus por completar el nivel
     setPuntos(puntosFinales);
     setEstrellasGanadas(estrellas);
     setNivelCompletado(true);
-    guardarResultado(puntosFinales, estrellas);
+    sonar("victoria");
+    guardarResultado(puntosFinales, estrellas, albumActual);
   };
 
   // ---------- Poder especial: Catalizador ----------
@@ -325,8 +459,10 @@ export default function App() {
     if (!poderListo || bloqueado || juegoTerminado) return;
 
     const { avance, moleculasNuevas } = calcularAvancePoder(grilla, nivelConfig, moleculasDistintasUsadas);
+    setPista(null);
     setBloqueado(true);
     setBarriendo(true);
+    sonar("poder");
 
     setTimeout(() => {
       setBarriendo(false);
@@ -346,7 +482,7 @@ export default function App() {
       mostrarMensaje(`⚡ ¡Catalizador! La meta avanzó +${avance}`, "exito");
 
       if (nuevoProgreso >= nivelConfig.metaCantidad) {
-        ganarNivel(nuevosPuntos, movimientosRestantes);
+        ganarNivel(nuevosPuntos, movimientosRestantes, album);
       }
       setBloqueado(false);
     }, 700);
@@ -358,6 +494,7 @@ export default function App() {
   // píxeles se decide la dirección y se intercambia con la ficha vecina.
   function manejarPointerDown(e, fila, col) {
     if (bloqueado || juegoTerminado) return;
+    setPista(null);
     setOrigenArrastre({ fila, col, x: e.clientX, y: e.clientY });
   }
 
@@ -383,6 +520,13 @@ export default function App() {
   function soltarArrastre() {
     setOrigenArrastre(null);
   }
+
+  const esPista = (f, c) =>
+    pista !== null && ((pista.a.fila === f && pista.a.col === c) || (pista.b.fila === f && pista.b.col === c));
+
+  // Elementos que muestra la leyenda: los del pool más los gases nobles si el nivel tiene
+  const elementosLeyenda = nivelConfig.probGasNoble ? [...nivelConfig.pool, "He", "Ne"] : nivelConfig.pool;
+  const totalMoleculas = Object.keys(MOLECULAS_DICCIONARIO).length;
 
   // ---------- Pantallas ----------
   return (
@@ -416,39 +560,40 @@ export default function App() {
           <ol className="ac-instrucciones">
             <li>Cada nivel te pide una meta: formar una molécula varias veces, juntar cierta cantidad de un elemento, o formar varias moléculas distintas.</li>
             <li><b>Deslizá</b> un átomo hacia un vecino (arriba, abajo, izquierda o derecha) para <b>intercambiarlos</b>, como en Candy Crush.</li>
-            <li>Si después del cambio queda una <b>línea</b> de átomos que forma una molécula (por ejemplo <b>H O H</b> = agua), la molécula se forma y caen átomos nuevos.</li>
-            <li>Si el cambio no forma nada, los átomos vuelven a su lugar y no perdés el movimiento.</li>
+            <li>Si después del cambio queda una <b>línea</b> de átomos que forma una molécula (por ejemplo <b>H O H</b> = agua), la molécula se forma y caen átomos nuevos. Si los átomos que caen forman otra molécula de la meta, hay <b>reacción en cadena</b>.</li>
+            <li>Si el cambio no forma nada, los átomos vuelven a su lugar y no perdés el movimiento. Si te trabás, a los {SEGUNDOS_PISTA} segundos aparece una <b>pista</b>.</li>
+            <li>Los <b>gases nobles</b> (He, Ne) no reaccionan con nada y no se pueden mover. Para sacarlos, formá una molécula pegada a ellos.</li>
             <li>Al sumar <b>{PUNTOS_PARA_PODER} puntos</b> se carga el poder <b>⚡ Catalizador</b>: barre todo el tablero y avanza tu meta con los átomos que había.</li>
             <li>Cada nivel tiene <b>movimientos</b> y <b>tiempo</b> limitados. Cuantos más movimientos te sobren, más estrellas ganás.</li>
           </ol>
           <button className="ac-btn" onClick={() => setPantalla("mapa")}>▶ Ir al mapa de niveles</button>
-          <button className="ac-btn ac-btn-sec" onClick={() => setPantalla("moleculas")}>🧪 Ver moléculas válidas</button>
+          <button className="ac-btn ac-btn-sec" onClick={() => setPantalla("album")}>📖 Ver álbum de moléculas</button>
         </div>
       )}
 
-      {/* TABLA DE MOLÉCULAS */}
-      {pantalla === "moleculas" && (
+      {/* ÁLBUM DE MOLÉCULAS */}
+      {pantalla === "album" && (
         <div className="ac-box">
-          <div className="ac-title">🧪 Moléculas válidas</div>
-          <p className="ac-subtitulo">Estas son las combinaciones que reconoce el juego</p>
+          <div className="ac-title">📖 Álbum de moléculas</div>
+          <p className="ac-subtitulo">
+            Descubriste {album.length} de {totalMoleculas}. Formá una molécula para desbloquear su dato curioso.
+          </p>
           <div className="ac-lista-moleculas">
-            {Object.values(MOLECULAS_DICCIONARIO).map((mol) => (
-              <div key={mol.formula} className="ac-molecula-fila">
-                <div>
-                  <div className="ac-molecula-formula">{mol.formula}</div>
-                  <div className="ac-molecula-nombre">{mol.nombre}</div>
+            {Object.values(MOLECULAS_DICCIONARIO).map((mol) => {
+              const descubierta = album.includes(mol.formula);
+              return (
+                <div key={mol.formula} className={`ac-molecula-fila ${descubierta ? "" : "oculta"}`}>
+                  <div className="ac-molecula-encabezado">
+                    <div>
+                      <div className="ac-molecula-formula">{mol.formula}</div>
+                      <div className="ac-molecula-nombre">{mol.nombre}</div>
+                    </div>
+                    <MiniAtomos molecula={mol} />
+                  </div>
+                  <div className="ac-molecula-dato">{descubierta ? mol.dato : "🔒 Todavía no la formaste"}</div>
                 </div>
-                <div className="ac-molecula-atomos">
-                  {Object.entries(mol.atomosNecesarios).map(([simbolo, cantidad]) =>
-                    Array.from({ length: cantidad }).map((_, i) => (
-                      <span key={simbolo + i} className="ac-mini-atomo" style={{ "--color": ELEMENTOS[simbolo].color }}>
-                        {simbolo}
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <button className="ac-btn ac-btn-sec" onClick={() => setPantalla("mapa")}>Volver al Mapa</button>
         </div>
@@ -468,7 +613,7 @@ export default function App() {
 
           <div className="ac-botonera">
             <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={() => setPantalla("instrucciones")}>❓ Cómo jugar</button>
-            <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={() => setPantalla("moleculas")}>🧪 Moléculas</button>
+            <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={() => setPantalla("album")}>📖 Álbum {album.length}/{totalMoleculas}</button>
             <button className="ac-btn ac-btn-chico" onClick={abrirRanking} disabled={cargando}>🏆 Ranking</button>
           </div>
 
@@ -508,6 +653,9 @@ export default function App() {
           <div className="ac-juego-top">
             <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={() => setPantalla("mapa")}>← Mapa</button>
             <span className="ac-nivel-etiqueta">Nivel {nivelConfig.id}</span>
+            <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={cambiarSonido} title="Sonido">
+              {silencio ? "🔇" : "🔊"}
+            </button>
           </div>
 
           <div className="ac-stats-bar">
@@ -533,7 +681,7 @@ export default function App() {
           </div>
 
           <div className="ac-leyenda">
-            {nivelConfig.pool.map((simbolo) => (
+            {elementosLeyenda.map((simbolo) => (
               <span key={simbolo} className="ac-leyenda-chip">
                 <span className="ac-leyenda-punto" style={{ background: ELEMENTOS[simbolo].color }} />
                 {simbolo} · {ELEMENTOS[simbolo].nombre}
@@ -568,9 +716,11 @@ export default function App() {
                   }
 
                   let clases = "ac-cell";
+                  if (esGasNoble(atomo.elemento)) clases += " noble";
                   if (desplazamiento) clases += " moviendo";
                   if (estaAcierto) clases += " acierto";
                   if (estaApretada) clases += " apretada";
+                  if (esPista(f, c)) clases += " pista";
 
                   return (
                     <div
@@ -612,6 +762,21 @@ export default function App() {
               ⚡ Catalizador {poderListo ? "¡LISTO!" : `${cargaPoder}/${PUNTOS_PARA_PODER}`}
             </button>
           </div>
+
+          {/* Tarjeta de molécula descubierta (frena el cronómetro) */}
+          {tarjeta && !juegoTerminado && (
+            <div className="ac-resultado ac-tarjeta">
+              <div className="ac-tarjeta-titulo">✨ ¡Nueva molécula descubierta!</div>
+              <div className="ac-tarjeta-formula">{tarjeta.formula}</div>
+              <div className="ac-molecula-nombre">{tarjeta.nombre}</div>
+              <MiniAtomos molecula={tarjeta} />
+              <p className="ac-tarjeta-dato">{tarjeta.dato}</p>
+              <p className="ac-tarjeta-album">Se guardó en tu álbum ({album.length}/{totalMoleculas})</p>
+              <button className="ac-btn" onClick={() => setTarjetas((actuales) => actuales.slice(1))}>
+                {tarjetas.length > 1 ? "Siguiente ▶" : "¡Seguir jugando!"}
+              </button>
+            </div>
+          )}
 
           {nivelCompletado && (
             <div className="ac-resultado">

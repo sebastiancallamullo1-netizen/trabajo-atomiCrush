@@ -224,13 +224,24 @@
 }
 
 .ac-molecula-fila {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 14px;
   padding: 10px 14px;
+}
+.ac-molecula-fila.oculta { opacity: 0.55; }
+
+.ac-molecula-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ac-molecula-dato {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
 .ac-molecula-formula {
@@ -465,6 +476,28 @@
   to { opacity: 0; margin-top: -50px; }
 }
 
+/* Gas noble: una cápsula oscura con borde punteado y la letra brillando.
+   Se ve distinta a los demás átomos porque no reacciona con nada. */
+.ac-cell.noble {
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.12), #1e293b 70%);
+  border: 2px dashed var(--color);
+  color: var(--color);
+  text-shadow: 0 0 8px var(--color);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+  cursor: not-allowed;
+}
+.ac-cell.noble::before { border-color: transparent; }
+
+/* Pista: las dos fichas que conviene intercambiar titilan */
+.ac-cell.pista {
+  animation: ac-pista 0.9s ease-in-out infinite;
+}
+
+@keyframes ac-pista {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85); }
+}
+
 /* ---------- Poder especial ---------- */
 .ac-poder { margin-top: 12px; }
 
@@ -511,6 +544,37 @@
 }
 .ac-resultado h3 { margin: 6px 0; font-family: "Fredoka", "Inter", sans-serif; font-size: 24px; }
 .ac-resultado p { font-size: 13px; color: #cbd5e1; }
+
+/* Tarjeta de molécula descubierta */
+.ac-tarjeta {
+  align-items: center;
+  z-index: 25;
+}
+.ac-tarjeta-titulo {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 20px;
+  color: #facc15;
+}
+.ac-tarjeta-formula {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.1;
+  animation: ac-latido-tarjeta 1.5s ease-in-out infinite;
+}
+@keyframes ac-latido-tarjeta {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.ac-tarjeta .ac-molecula-atomos { justify-content: center; margin: 10px 0; }
+.ac-tarjeta-dato {
+  font-size: 15px !important;
+  color: #f8fafc !important;
+  line-height: 1.5;
+  max-width: 340px;
+}
+.ac-tarjeta-album { color: #94a3b8 !important; }
+.ac-tarjeta .ac-btn { max-width: 260px; }
 
 /* ---------- Ranking ---------- */
 .ac-lb-row {
