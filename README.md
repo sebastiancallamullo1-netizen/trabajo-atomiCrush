@@ -3,21 +3,34 @@
 Proyecto de PISWD (Prof. Diego Callamullo) — 7mo año.
 Integrantes: Santiago Battiston, Sebastián Callamullo, Ignacio Kozak, Dylan Ugarte.
 
-## Cómo abrir el juego
+## Cómo ejecutar el proyecto
 
-**Opción 1 (sin instalar nada):** abrir con doble clic el archivo `index.html` (o directamente `docs/index.html`).
-Es la versión ya armada del juego, todo en un solo archivo, y funciona en cualquier navegador.
+El juego está hecho con React y Vite, así que no se abre con doble clic en `index.html`: hay que ejecutarlo con Node.js.
 
-**Opción 2 (para programar):**
+**Requisitos**
+
+- [Node.js](https://nodejs.org) **20.19 o más nuevo** (o 22.12 o más nuevo). Para ver la versión instalada: `node -v`.
+- Git, para clonar el repositorio.
+
+**Pasos**
 
 ```
+git clone https://github.com/sebastiancallamullo1-netizen/trabajo-atomiCrush.git
+cd trabajo-atomiCrush
 npm install
 npm run dev
 ```
 
-y entrar a `http://localhost:5173`.
+Después abrir en el navegador la dirección que muestra la consola (normalmente `http://localhost:5173`).
 
-Después de hacer cambios en el código, correr `npm run build` para actualizar la versión de `docs/`.
+**Versión de producción**
+
+```
+npm run build
+npm run preview
+```
+
+`npm run build` arma la versión final del juego en la carpeta `docs/` y `npm run preview` la sirve en `http://localhost:4173`, como lo haría un hosting.
 
 ## Cómo está organizado el código
 
@@ -25,11 +38,18 @@ Después de hacer cambios en el código, correr `npm run build` para actualizar 
 |---|---|
 | `src/datos.js` | Elementos, moléculas válidas y los 10 niveles |
 | `src/logica.js` | Generación del tablero, gravedad, detección de moléculas en línea, poder Catalizador, estrellas |
-| `src/firebase.js` | Base de datos: guardar/cargar el progreso de cada jugador y el ranking |
+| `src/baseDeDatos.js` | Pedidos a los PHP: registro, inicio de sesión, guardar progreso y ranking |
+| `api/` | Servidor en PHP (XAMPP) y `base_de_datos.sql` con las tablas de MySQL |
 | `src/App.jsx` | Pantallas, estados del juego y eventos del usuario |
 | `src/App.css` | Estilos y animaciones |
 
-## Base de datos (Firebase)
+## Base de datos y login (XAMPP)
 
-El progreso se guarda en Firebase Firestore (colección `jugadores`).
-Mientras `firebaseConfig` en `src/firebase.js` esté vacío, el juego guarda en el navegador (localStorage) y funciona igual.
+Los usuarios, contraseñas, puntajes y el álbum se guardan en MySQL con XAMPP. El juego le hace pedidos a los archivos PHP de la carpeta `api/`.
+
+1. Abrir el panel de XAMPP y prender **Apache** y **MySQL**.
+2. Entrar a **http://localhost/phpmyadmin**, ir a la pestaña **Importar**, elegir `api/base_de_datos.sql` y tocar **Continuar**. Se crea la base `atomicrush` con las tablas `usuarios`, `puntajes` y `album`.
+3. Copiar el contenido de la carpeta `api/` a `htdocs/atomicrush/` de XAMPP (en Windows: `C:\xampp\htdocs\atomicrush\`; en Mac: `/Applications/XAMPP/xamppfiles/htdocs/atomicrush/`).
+4. Correr el juego con `npm run dev`, crear una cuenta y jugar. En phpMyAdmin se ven los datos guardados.
+
+Las contraseñas no se guardan tal cual: PHP guarda un hash con `password_hash()` y al iniciar sesión las compara con `password_verify()`.

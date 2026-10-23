@@ -18,7 +18,7 @@ import {
   calcularEstrellas,
   formatearTiempo,
 } from "./logica.js";
-import { cargarJugador, guardarJugador, cargarRanking, usandoFirebase } from "./firebase.js";
+import { registrarUsuario, iniciarSesion, guardarProgreso, cargarRanking } from "./baseDeDatos.js";
 import { sonar, estaSilenciado, alternarSonido } from "./sonidos.js";
 
 /* ============================================================
@@ -58,6 +58,12 @@ function MiniAtomos({ molecula }) {
 export default function App() {
   // ---------- Jugador y pantallas ----------
   const [usuario, setUsuario] = useState("");
+  const [contrasenia, setContrasenia] = useState("");
+  // "ingresar" = iniciar sesión, "registrar" = crear una cuenta nueva
+  const [modoLogin, setModoLogin] = useState("ingresar");
+  const [errorLogin, setErrorLogin] = useState("");
+  // id del jugador en la base de datos (null = no inició sesión)
+  const [usuarioId, setUsuarioId] = useState(null);
   const [pantalla, setPantalla] = useState("login");
   const [cargando, setCargando] = useState(false);
   const [nivelMaximo, setNivelMaximo] = useState(1);
@@ -95,6 +101,7 @@ export default function App() {
   const [celdasAcierto, setCeldasAcierto] = useState([]); // fichas que brillan
   const [barriendo, setBarriendo] = useState(false); // animación del poder
   const [carteles, setCarteles] = useState([]); // "+150" que suben y desaparecen
+
 
   const nivelConfig = MAPA_NIVELES[nivelIndex];
   const juegoTerminado = nivelCompletado || sinMovimientos || sinTiempo;
@@ -136,31 +143,42 @@ export default function App() {
   }, [sinMovimientos, sinTiempo]);
 
   // ---------- Login y progreso guardado ----------
+  // Según el modo, crea la cuenta o revisa usuario y contraseña en la base
+  // de datos. Si sale bien, el servidor devuelve el progreso del jugador.
   const handleLogin = async (e) => {
     e.preventDefault();
-    const nombre = usuario.trim();
-    if (nombre.length === 0) return;
-
+    setErrorLogin("");
     setCargando(true);
-    const datos = await cargarJugador(nombre);
+    const respuesta =
+      modoLogin === "registrar"
+        ? await registrarUsuario(usuario.trim(), contrasenia)
+        : await iniciarSesion(usuario.trim(), contrasenia);
     setCargando(false);
 
-    if (datos) {
-      // Jugador que ya había jugado: recuperamos su progreso y va directo al mapa
-      setNivelMaximo(datos.nivelMaximo);
-      setProgresoNiveles(datos.niveles || {});
-      setAlbum(datos.album || []);
-      setPantalla("mapa");
-    } else {
-      setNivelMaximo(1);
-      setProgresoNiveles({});
-      setAlbum([]);
-      setPantalla("instrucciones");
+    if (!respuesta.ok) {
+      setErrorLogin(respuesta.error);
+      return;
     }
+
+    setUsuarioId(respuesta.usuarioId);
+    setUsuario(respuesta.usuario);
+    setContrasenia("");
+    setNivelMaximo(respuesta.nivelMaximo);
+    setProgresoNiveles(respuesta.niveles);
+    setAlbum(respuesta.album);
+    // Un jugador nuevo ve primero las instrucciones; uno que ya jugó va al mapa
+    setPantalla(modoLogin === "registrar" ? "instrucciones" : "mapa");
+  };
+
+  const cambiarModoLogin = () => {
+    setModoLogin(modoLogin === "ingresar" ? "registrar" : "ingresar");
+    setErrorLogin("");
   };
 
   const cerrarSesion = () => {
     setUsuario("");
+    setContrasenia("");
+    setUsuarioId(null);
     setNivelMaximo(1);
     setProgresoNiveles({});
     setAlbum([]);
@@ -176,23 +194,14 @@ export default function App() {
 
   // Guarda en la base de datos todo lo del jugador. "cambios" trae los
   // datos nuevos (por ejemplo el álbum actualizado); el resto se toma
-  // del estado actual.
+  // del estado actual. El servidor solo guarda mejoras.
   const guardarDatos = (cambios) => {
-    const datos = {
-      usuario: usuario.trim(),
+    guardarProgreso(usuarioId, {
       nivelMaximo,
       niveles: progresoNiveles,
       album,
       ...cambios,
-    };
-    // El puntaje total es la suma del mejor puntaje de cada nivel.
-    // Así repetir el nivel 1 muchas veces no infla el ranking.
-    let puntosTotales = 0;
-    Object.values(datos.niveles).forEach((nivel) => {
-      puntosTotales += nivel.puntos;
     });
-    datos.puntosTotales = puntosTotales;
-    guardarJugador(usuario.trim(), datos);
   };
 
   // Al ganar: se guarda el resultado del nivel si mejoró el anterior
@@ -538,18 +547,32 @@ export default function App() {
           <div className="ac-title">ATOMICRUSH</div>
           <p className="ac-subtitulo">Plataforma Educativa de Química</p>
           <form onSubmit={handleLogin} style={{ marginTop: "20px" }}>
-            <label className="ac-label">Ingresá tu nombre de estudiante:</label>
+            <label className="ac-label">Usuario</label>
             <input
               className="ac-input"
               placeholder="Ej: Santiago"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
+              autoComplete="username"
               required
             />
+            <label className="ac-label">Contraseña</label>
+            <input
+              className="ac-input"
+              type="password"
+              value={contrasenia}
+              onChange={(e) => setContrasenia(e.target.value)}
+              autoComplete={modoLogin === "registrar" ? "new-password" : "current-password"}
+              required
+            />
+            {errorLogin && <p className="ac-error-login">{errorLogin}</p>}
             <button className="ac-btn" type="submit" disabled={cargando}>
-              {cargando ? "Cargando progreso..." : "Iniciar Sesión"}
+              {cargando ? "Conectando..." : modoLogin === "registrar" ? "Crear cuenta" : "Iniciar Sesión"}
             </button>
           </form>
+          <button className="ac-link" onClick={cambiarModoLogin}>
+            {modoLogin === "registrar" ? "¿Ya tenés cuenta? Iniciá sesión" : "¿No tenés cuenta? Creá una"}
+          </button>
         </div>
       )}
 
@@ -606,7 +629,7 @@ export default function App() {
             <div>
               <span className="ac-label">Estudiante</span>
               <h3 className="ac-nombre">{usuario}</h3>
-              <span className="ac-guardado">{usandoFirebase ? "☁️ Progreso guardado en la nube" : "💾 Progreso guardado en este navegador"}</span>
+              <span className="ac-guardado">🗄️ Progreso guardado en la base de datos</span>
             </div>
             <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={cerrarSesion}>🚪 Salir</button>
           </div>
@@ -810,7 +833,7 @@ export default function App() {
         <div className="ac-box">
           <div className="ac-title">🏆 Tabla de Posiciones</div>
           <p className="ac-subtitulo">
-            {usandoFirebase ? "Datos de la base de datos (Firebase)" : "Datos guardados en este navegador"}
+            Mejor puntaje de cada nivel, sumado (base de datos MySQL)
           </p>
 
           {ranking.length === 0 && <p className="ac-vacio">Todavía nadie completó un nivel.</p>}
