@@ -5,8 +5,11 @@
    de XAMPP. Esos PHP leen y escriben en MySQL (se ve en phpMyAdmin).
    ============================================================ */
 
-// Dónde están los PHP: la carpeta "api" copiada en htdocs/atomicrush
-const URL_API = "http://localhost/atomicrush";
+// Dónde están los PHP: la carpeta "api" copiada en htdocs/atomicrush de la
+// compu que tiene XAMPP. Se usa la misma dirección desde donde se abrió el
+// juego (window.location.hostname): si se abrió en "localhost" busca ahí, y
+// si otra compu entró con la IP (por ejemplo 10.0.20.75), busca en esa IP.
+const URL_API = `http://${window.location.hostname}/atomicrush`;
 
 // Manda un pedido a un archivo PHP y devuelve su respuesta.
 // Si el servidor no responde (XAMPP apagado), devuelve un error claro.

@@ -53,3 +53,14 @@ Los usuarios, contraseñas, puntajes y el álbum se guardan en MySQL con XAMPP. 
 4. Correr el juego con `npm run dev`, crear una cuenta y jugar. En phpMyAdmin se ven los datos guardados.
 
 Las contraseñas no se guardan tal cual: PHP guarda un hash con `password_hash()` y al iniciar sesión las compara con `password_verify()`.
+
+## Jugar desde otra compu de la red (sin Node)
+
+XAMPP puede servir el juego completo, así quien juega no necesita instalar nada:
+
+1. En la compu que tiene XAMPP: `npm run build` y copiar el contenido de `docs/` a `htdocs/atomicrush/` (junto a los PHP).
+2. Ver la IP de esa compu en la red (en Mac: `ipconfig getifaddr en0`; en Windows: `ipconfig`).
+3. Desde cualquier compu conectada a la misma red, entrar a `http://IP-de-la-compu/atomicrush/` (por ejemplo `http://10.0.20.75/atomicrush/`).
+
+El juego busca los PHP en la misma dirección desde donde se abrió (`window.location.hostname`), por eso funciona tanto con `localhost` como con la IP.
+
