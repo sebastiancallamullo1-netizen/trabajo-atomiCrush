@@ -179,6 +179,9 @@ export default function App() {
     setUsuario("");
     setContrasenia("");
     setUsuarioId(null);
+    // La próxima vez la pantalla arranca en "iniciar sesión", no en "crear cuenta"
+    setModoLogin("ingresar");
+    setErrorLogin("");
     setNivelMaximo(1);
     setProgresoNiveles({});
     setAlbum([]);
