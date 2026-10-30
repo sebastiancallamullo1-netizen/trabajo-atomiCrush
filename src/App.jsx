@@ -18,7 +18,7 @@ import {
   calcularEstrellas,
   formatearTiempo,
 } from "./logica.js";
-import { registrarUsuario, iniciarSesion, guardarProgreso, cargarRanking } from "./baseDeDatos.js";
+import { registrarUsuario, iniciarSesion, recuperarSesion, cerrarSesionBD, guardarProgreso, cargarRanking } from "./baseDeDatos.js";
 import { sonar, estaSilenciado, alternarSonido } from "./sonidos.js";
 
 /* ============================================================
@@ -57,13 +57,12 @@ function MiniAtomos({ molecula }) {
 
 export default function App() {
   // ---------- Jugador y pantallas ----------
-  const [usuario, setUsuario] = useState("");
+  const [usuario, setUsuario] = useState(""); // nickname del jugador
+  const [correo, setCorreo] = useState("");
   const [contrasenia, setContrasenia] = useState("");
   // "ingresar" = iniciar sesión, "registrar" = crear una cuenta nueva
   const [modoLogin, setModoLogin] = useState("ingresar");
   const [errorLogin, setErrorLogin] = useState("");
-  // id del jugador en la base de datos (null = no inició sesión)
-  const [usuarioId, setUsuarioId] = useState(null);
   const [pantalla, setPantalla] = useState("login");
   const [cargando, setCargando] = useState(false);
   const [nivelMaximo, setNivelMaximo] = useState(1);
@@ -143,31 +142,42 @@ export default function App() {
   }, [sinMovimientos, sinTiempo]);
 
   // ---------- Login y progreso guardado ----------
-  // Según el modo, crea la cuenta o revisa usuario y contraseña en la base
-  // de datos. Si sale bien, el servidor devuelve el progreso del jugador.
+  // Carga en el juego los datos que devolvió la base de datos
+  const entrarAlJuego = (respuesta, pantallaInicial) => {
+    setUsuario(respuesta.usuario);
+    setContrasenia("");
+    setNivelMaximo(respuesta.nivelMaximo);
+    setProgresoNiveles(respuesta.niveles);
+    setAlbum(respuesta.album);
+    setPantalla(pantallaInicial);
+  };
+
+  // Al abrir el juego: si el jugador ya había iniciado sesión en este
+  // navegador, entra directo al mapa sin escribir la contraseña de nuevo.
+  useEffect(() => {
+    recuperarSesion().then((respuesta) => {
+      if (respuesta.ok) entrarAlJuego(respuesta, "mapa");
+    });
+  }, []);
+
+  // Según el modo, crea la cuenta o revisa correo y contraseña en la base
+  // de datos. Si sale bien, devuelve el progreso del jugador.
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorLogin("");
     setCargando(true);
     const respuesta =
       modoLogin === "registrar"
-        ? await registrarUsuario(usuario.trim(), contrasenia)
-        : await iniciarSesion(usuario.trim(), contrasenia);
+        ? await registrarUsuario(usuario.trim(), correo.trim(), contrasenia)
+        : await iniciarSesion(correo.trim(), contrasenia);
     setCargando(false);
 
     if (!respuesta.ok) {
       setErrorLogin(respuesta.error);
       return;
     }
-
-    setUsuarioId(respuesta.usuarioId);
-    setUsuario(respuesta.usuario);
-    setContrasenia("");
-    setNivelMaximo(respuesta.nivelMaximo);
-    setProgresoNiveles(respuesta.niveles);
-    setAlbum(respuesta.album);
     // Un jugador nuevo ve primero las instrucciones; uno que ya jugó va al mapa
-    setPantalla(modoLogin === "registrar" ? "instrucciones" : "mapa");
+    entrarAlJuego(respuesta, modoLogin === "registrar" ? "instrucciones" : "mapa");
   };
 
   const cambiarModoLogin = () => {
@@ -176,9 +186,10 @@ export default function App() {
   };
 
   const cerrarSesion = () => {
+    cerrarSesionBD();
     setUsuario("");
+    setCorreo("");
     setContrasenia("");
-    setUsuarioId(null);
     // La próxima vez la pantalla arranca en "iniciar sesión", no en "crear cuenta"
     setModoLogin("ingresar");
     setErrorLogin("");
@@ -199,7 +210,7 @@ export default function App() {
   // datos nuevos (por ejemplo el álbum actualizado); el resto se toma
   // del estado actual. El servidor solo guarda mejoras.
   const guardarDatos = (cambios) => {
-    guardarProgreso(usuarioId, {
+    guardarProgreso({
       nivelMaximo,
       niveles: progresoNiveles,
       album,
@@ -550,13 +561,27 @@ export default function App() {
           <div className="ac-title">ATOMICRUSH</div>
           <p className="ac-subtitulo">Plataforma Educativa de Química</p>
           <form onSubmit={handleLogin} style={{ marginTop: "20px" }}>
-            <label className="ac-label">Usuario</label>
+            {modoLogin === "registrar" && (
+              <>
+                <label className="ac-label">Nickname</label>
+                <input
+                  className="ac-input"
+                  placeholder="Ej: Santiago"
+                  value={usuario}
+                  onChange={(e) => setUsuario(e.target.value)}
+                  autoComplete="nickname"
+                  required
+                />
+              </>
+            )}
+            <label className="ac-label">Correo</label>
             <input
               className="ac-input"
-              placeholder="Ej: Santiago"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              autoComplete="username"
+              type="email"
+              placeholder="Ej: santiago@gmail.com"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              autoComplete="email"
               required
             />
             <label className="ac-label">Contraseña</label>

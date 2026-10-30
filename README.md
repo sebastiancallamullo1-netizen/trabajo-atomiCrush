@@ -38,29 +38,35 @@ npm run preview
 |---|---|
 | `src/datos.js` | Elementos, moléculas válidas y los 10 niveles |
 | `src/logica.js` | Generación del tablero, gravedad, detección de moléculas en línea, poder Catalizador, estrellas |
-| `src/baseDeDatos.js` | Pedidos a los PHP: registro, inicio de sesión, guardar progreso y ranking |
-| `api/` | Servidor en PHP (XAMPP) y `base_de_datos.sql` con las tablas de MySQL |
+| `src/baseDeDatos.js` | Conexión con Supabase: registro, inicio de sesión, guardar progreso y ranking |
+| `supabase/base_de_datos.sql` | Tablas, reglas de seguridad y funciones de la base de datos |
 | `src/App.jsx` | Pantallas, estados del juego y eventos del usuario |
 | `src/App.css` | Estilos y animaciones |
 
-## Base de datos y login (XAMPP)
+## Base de datos y login (Supabase)
 
-Los usuarios, contraseñas, puntajes y el álbum se guardan en MySQL con XAMPP. El juego le hace pedidos a los archivos PHP de la carpeta `api/`.
+Los usuarios, puntajes y el álbum se guardan en [Supabase](https://supabase.com), una base de datos PostgreSQL en internet. El juego se conecta directo desde el navegador; no hace falta PHP ni XAMPP.
 
-1. Abrir el panel de XAMPP y prender **Apache** y **MySQL**.
-2. Entrar a **http://localhost/phpmyadmin**, ir a la pestaña **Importar**, elegir `api/base_de_datos.sql` y tocar **Continuar**. Se crea la base `atomicrush` con las tablas `usuarios`, `puntajes` y `album`.
-3. Copiar el contenido de la carpeta `api/` a `htdocs/atomicrush/` de XAMPP (en Windows: `C:\xampp\htdocs\atomicrush\`; en Mac: `/Applications/XAMPP/xamppfiles/htdocs/atomicrush/`).
-4. Correr el juego con `npm run dev`, crear una cuenta y jugar. En phpMyAdmin se ven los datos guardados.
+1. Crear un proyecto en Supabase.
+2. En el proyecto: **SQL Editor** > **New query** > pegar todo `supabase/base_de_datos.sql` > **Run**. Se crean las tablas `perfiles`, `puntajes` y `album`, y las funciones `guardar_progreso` y `ranking`.
+3. En **Authentication** > **Sign In / Providers** > **Email**, desactivar **Confirm email** (así los alumnos entran apenas crean la cuenta, sin confirmar el correo).
+4. En **Project Settings** > **API** copiar la **Project URL** y la **anon public key** y pegarlas en `src/baseDeDatos.js`.
 
-Las contraseñas no se guardan tal cual: PHP guarda un hash con `password_hash()` y al iniciar sesión las compara con `password_verify()`.
+Las contraseñas las guarda Supabase hasheadas. Cada jugador solo puede ver y modificar sus propios datos, por las reglas de seguridad (RLS) del archivo `.sql`.
 
-## Jugar desde otra compu de la red (sin Node)
+## Publicar el juego (Vercel)
 
-XAMPP puede servir el juego completo, así quien juega no necesita instalar nada:
+El juego está publicado en Vercel, que lo arma y lo sube solo cada vez que se hace push a `main`:
 
-1. En la compu que tiene XAMPP: `npm run build` y copiar el contenido de `docs/` a `htdocs/atomicrush/` (junto a los PHP).
-2. Ver la IP de esa compu en la red (en Mac: `ipconfig getifaddr en0`; en Windows: `ipconfig`).
-3. Desde cualquier compu conectada a la misma red, entrar a `http://IP-de-la-compu/atomicrush/` (por ejemplo `http://10.0.20.75/atomicrush/`).
+1. Entrar a [vercel.com](https://vercel.com) con la cuenta de GitHub.
+2. **Add New** > **Project** > elegir el repositorio `trabajo-atomiCrush` > **Deploy**. La configuración (`npm run build` y la carpeta `docs`) ya está en `vercel.json`.
 
-El juego busca los PHP en la misma dirección desde donde se abrió (`window.location.hostname`), por eso funciona tanto con `localhost` como con la IP.
+## Versión anterior con XAMPP
 
+La versión con PHP + MySQL en XAMPP quedó guardada en la rama `version-xampp`:
+
+```
+git checkout version-xampp
+```
+
+Ahí están la carpeta `api/` con los PHP y las instrucciones para correrla.
