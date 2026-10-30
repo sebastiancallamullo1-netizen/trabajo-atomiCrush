@@ -56,10 +56,15 @@ Las contraseñas las guarda Supabase hasheadas. Cada jugador solo puede ver y mo
 
 ## Publicar el juego (Vercel)
 
-El juego está publicado en Vercel, que lo arma y lo sube solo cada vez que se hace push a `main`:
+El juego está publicado en **https://atomicrush.vercel.app**.
 
-1. Entrar a [vercel.com](https://vercel.com) con la cuenta de GitHub.
-2. **Add New** > **Project** > elegir el repositorio `trabajo-atomiCrush` > **Deploy**. La configuración (`npm run build` y la carpeta `docs`) ya está en `vercel.json`.
+Para subir una versión nueva después de hacer cambios (desde la compu que tiene la sesión de Vercel iniciada):
+
+```
+npx vercel deploy --prod
+```
+
+La primera vez en otra compu hay que iniciar sesión con `npx vercel login` y vincular la carpeta con `npx vercel link --project atomicrush`. La configuración (`npm run build` y la carpeta `docs`) está en `vercel.json`.
 
 ## Versión anterior con XAMPP
 
