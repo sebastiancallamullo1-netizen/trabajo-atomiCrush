@@ -50,7 +50,7 @@ Los usuarios, puntajes y el álbum se guardan en [Supabase](https://supabase.com
 1. Crear un proyecto en Supabase.
 2. En el proyecto: **SQL Editor** > **New query** > pegar todo `supabase/base_de_datos.sql` > **Run**. Se crean las tablas `perfiles`, `puntajes` y `album`, y las funciones `guardar_progreso` y `ranking`.
 3. En **Authentication** > **Sign In / Providers** > **Email**, desactivar **Confirm email** (así los alumnos entran apenas crean la cuenta, sin confirmar el correo).
-4. En **Project Settings** > **API** copiar la **Project URL** y la **anon public key** y pegarlas en `src/baseDeDatos.js`.
+4. En **Project Settings** > **API Keys** copiar la **Project URL** y la **publishable key** y pegarlas en `src/baseDeDatos.js`.
 
 Las contraseñas las guarda Supabase hasheadas. Cada jugador solo puede ver y modificar sus propios datos, por las reglas de seguridad (RLS) del archivo `.sql`.
 

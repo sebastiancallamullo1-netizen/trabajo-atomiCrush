@@ -8,14 +8,14 @@
    ============================================================ */
 import { createClient } from "@supabase/supabase-js";
 
-// Datos del proyecto de Supabase: se copian de Project Settings > API.
-// La "anon key" es pública (se puede subir al repo): lo que protege los
+// Datos del proyecto de Supabase: se copian de Project Settings > API Keys.
+// La "publishable key" es pública (se puede subir al repo): lo que protege los
 // datos son las reglas de seguridad (RLS) que están en el archivo .sql.
-const SUPABASE_URL = "PEGAR_ACA_LA_PROJECT_URL";
-const SUPABASE_ANON_KEY = "PEGAR_ACA_LA_ANON_KEY";
+const SUPABASE_URL = "https://weqaljmtmstzvkmblomh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_NfYdxrnnT0So5C6Z90ACIw_dOVLrqJq";
 
 const configurado = SUPABASE_URL.startsWith("https://");
-const supabase = configurado ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabase = configurado ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const SIN_CONFIGURAR = { ok: false, error: "Falta configurar Supabase en src/baseDeDatos.js." };
 
