@@ -27,7 +27,7 @@ function traducirError(error) {
   if (mensaje.includes("Email not confirmed")) return "Todavía no confirmaste tu correo. Revisá tu bandeja de entrada.";
   if (mensaje.includes("Password should be")) return "La contraseña tiene que tener al menos 6 caracteres.";
   if (mensaje.includes("invalid format") || mensaje.includes("is invalid")) return "El correo no es válido.";
-  if (mensaje.includes("Database error saving new user")) return "Ese nickname ya existe. Elegí otro.";
+  if (mensaje.includes("Database error saving new user")) return "No se pudo crear la cuenta. Revisá el nickname y el correo.";
   if (mensaje.includes("Failed to fetch")) return "No se pudo conectar con el servidor. Revisá tu conexión a internet.";
   return mensaje || "Ocurrió un error. Probá de nuevo.";
 }
@@ -72,6 +72,11 @@ export async function registrarUsuario(nickname, correo, contrasenia) {
   if (contrasenia.length < 6) {
     return { ok: false, error: "La contraseña tiene que tener al menos 6 caracteres." };
   }
+
+  // ¿El correo es de un dominio permitido? (la lista está en la tabla dominios_permitidos)
+  const dominio = correo.split("@")[1]?.toLowerCase() || "";
+  const { data: permitido } = await supabase.from("dominios_permitidos").select("dominio").eq("dominio", dominio).maybeSingle();
+  if (!permitido) return { ok: false, error: "Usá un correo de Gmail, Hotmail, Outlook, Yahoo o iCloud." };
 
   // ¿Ya existe alguien con ese nickname?
   const { data: ocupado } = await supabase.from("perfiles").select("id").eq("nickname", nickname).maybeSingle();

@@ -129,3 +129,45 @@ as $$
   order by puntos_totales desc
   limit 10;
 $$;
+
+-- ============================================================
+-- DOMINIOS DE CORREO PERMITIDOS
+-- Solo se pueden crear cuentas con correos de estos dominios
+-- (por ejemplo, alumno@gmail.com sí, alumno@cualquiercosa.xyz no).
+-- Para permitir otro dominio: insert into public.dominios_permitidos values ('nuevo.com');
+-- ============================================================
+create table public.dominios_permitidos (
+  dominio text primary key
+);
+
+insert into public.dominios_permitidos (dominio) values
+  ('gmail.com'), ('hotmail.com'), ('hotmail.com.ar'), ('outlook.com'),
+  ('outlook.com.ar'), ('live.com'), ('live.com.ar'), ('yahoo.com'),
+  ('yahoo.com.ar'), ('icloud.com');
+
+-- Cualquiera puede ver la lista (el juego la usa para avisar antes de registrar)
+alter table public.dominios_permitidos enable row level security;
+create policy "Todos ven los dominios" on public.dominios_permitidos
+  for select using (true);
+
+-- Antes de crear una cuenta, se revisa que el dominio del correo esté en la lista.
+-- Así, aunque alguien se saltee el juego, la base de datos no lo deja registrarse.
+create function public.revisar_dominio()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  if not exists (
+    select 1 from public.dominios_permitidos
+    where dominio = lower(split_part(new.email, '@', 2))
+  ) then
+    raise exception 'Dominio de correo no permitido';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger antes_de_crear_usuario
+  before insert on auth.users
+  for each row execute function public.revisar_dominio();
