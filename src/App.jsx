@@ -92,6 +92,8 @@ export default function App() {
   // si en una cadena se descubren dos, se muestran una después de la otra.
   const [tarjetas, setTarjetas] = useState([]);
   const [pista, setPista] = useState(null); // jugada sugerida { a, b }
+  // Historial de combinaciones del nivel: la más nueva queda primera
+  const [historial, setHistorial] = useState([]);
 
   // ---------- Estado de las animaciones ----------
   const [origenArrastre, setOrigenArrastre] = useState(null); // dónde se apretó
@@ -257,6 +259,7 @@ export default function App() {
     setCarteles([]);
     setTarjetas([]);
     setPista(null);
+    setHistorial([]);
     setMensaje({ texto: "", tipo: "" });
     setPantalla("jugando");
   };
@@ -427,6 +430,10 @@ export default function App() {
     setCargaPoder(estadoNuevo.carga);
     setMoleculasDistintasUsadas(usadas);
     mostrarCartel(`+${puntosGanados}`, celdas);
+    setHistorial((anteriores) => [
+      { id: Date.now() + Math.random(), molecula, puntos: puntosGanados, enCadena: numeroCadena > 0 },
+      ...anteriores,
+    ]);
 
     let texto = `✅ ¡Formaste ${molecula.nombre} (${molecula.formula})!`;
     if (numeroCadena > 0) texto = `⛓️ ¡Reacción en cadena! Se formó ${molecula.formula} solo`;
@@ -550,6 +557,10 @@ export default function App() {
   // Elementos que muestra la leyenda: los del pool más los gases nobles si el nivel tiene
   const elementosLeyenda = nivelConfig.probGasNoble ? [...nivelConfig.pool, "He", "Ne"] : nivelConfig.pool;
   const totalMoleculas = Object.keys(MOLECULAS_DICCIONARIO).length;
+  // Combinaciones posibles: las moléculas cuyos átomos aparecen todos en este nivel
+  const combinacionesPosibles = Object.values(MOLECULAS_DICCIONARIO).filter((molecula) =>
+    Object.keys(molecula.atomosNecesarios).every((simbolo) => nivelConfig.pool.includes(simbolo))
+  );
 
   // ---------- Pantallas ----------
   return (
@@ -700,6 +711,24 @@ export default function App() {
 
       {/* JUEGO EN CURSO */}
       {pantalla === "jugando" && (
+        <div className="ac-juego-layout">
+          {/* PANEL IZQUIERDO: combinaciones posibles en este nivel */}
+          <aside className="ac-panel ac-panel-izq">
+            <div className="ac-panel-titulo">🧪 Combinaciones posibles</div>
+            {combinacionesPosibles.map((molecula) => (
+              <div
+                key={molecula.formula}
+                className={`ac-panel-item ${molecula.formula === nivelConfig.metaFormula ? "meta" : ""}`}
+              >
+                <div className="ac-panel-fila">
+                  <span className="ac-molecula-formula">{molecula.formula}</span>
+                  <span className="ac-molecula-nombre">{molecula.nombre}</span>
+                </div>
+                <MiniAtomos molecula={molecula} />
+              </div>
+            ))}
+          </aside>
+
         <div className="ac-box ac-box-juego">
           <div className="ac-juego-top">
             <button className="ac-btn ac-btn-sec ac-btn-chico" onClick={() => setPantalla("mapa")}>← Mapa</button>
@@ -819,7 +848,7 @@ export default function App() {
             <div className="ac-resultado ac-tarjeta">
               <div className="ac-tarjeta-titulo">✨ ¡Nueva molécula descubierta!</div>
               <div className="ac-tarjeta-formula">{tarjeta.formula}</div>
-              <div className="ac-molecula-nombre">{tarjeta.nombre}</div>
+              <div className="ac-tarjeta-nombre">{tarjeta.nombre}</div>
               <MiniAtomos molecula={tarjeta} />
               <p className="ac-tarjeta-dato">{tarjeta.dato}</p>
               <p className="ac-tarjeta-album">Se guardó en tu álbum ({album.length}/{totalMoleculas})</p>
@@ -853,6 +882,25 @@ export default function App() {
               <button className="ac-btn ac-btn-sec" onClick={() => setPantalla("mapa")}>Volver al Mapa</button>
             </div>
           )}
+        </div>
+
+          {/* PANEL DERECHO: historial de combinaciones de este nivel */}
+          <aside className="ac-panel ac-panel-der">
+            <div className="ac-panel-titulo">📜 Historial</div>
+            {historial.length === 0 && <p className="ac-panel-vacio">Todavía no formaste ninguna molécula.</p>}
+            {historial.map((jugada) => (
+              <div key={jugada.id} className="ac-panel-item">
+                <div className="ac-panel-fila">
+                  <span className="ac-molecula-formula">{jugada.molecula.formula}</span>
+                  <span className="ac-panel-puntos">+{jugada.puntos}</span>
+                </div>
+                <span className="ac-molecula-nombre">
+                  {jugada.molecula.nombre}
+                  {jugada.enCadena && " · ⛓️ en cadena"}
+                </span>
+              </div>
+            ))}
+          </aside>
         </div>
       )}
 

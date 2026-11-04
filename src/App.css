@@ -584,7 +584,16 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
-.ac-tarjeta .ac-molecula-atomos { justify-content: center; margin: 10px 0; }
+/* Nombre del compuesto grande, debajo de la fórmula */
+.ac-tarjeta-nombre {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-top: 4px;
+}
+.ac-tarjeta .ac-molecula-atomos { justify-content: center; margin: 14px 0; gap: 8px; }
+.ac-tarjeta .ac-mini-atomo { width: 46px; height: 46px; font-size: 17px; }
 .ac-tarjeta-dato {
   font-size: 15px !important;
   color: #f8fafc !important;
@@ -593,6 +602,64 @@
 }
 .ac-tarjeta-album { color: #94a3b8 !important; }
 .ac-tarjeta .ac-btn { max-width: 260px; }
+
+/* ---------- Paneles al costado del tablero ---------- */
+/* Izquierda: combinaciones posibles. Derecha: historial del nivel. */
+.ac-juego-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 480px) 210px;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  max-width: 940px;
+}
+.ac-panel {
+  background: rgba(30, 41, 59, 0.88);
+  border: 1px solid #334155;
+  border-radius: 20px;
+  padding: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: ac-aparecer 0.3s ease-out;
+}
+.ac-panel-titulo {
+  font-family: "Fredoka", "Inter", sans-serif;
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+.ac-panel-item {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: ac-aparecer 0.3s ease-out;
+}
+.ac-panel-item.meta { border-left: 4px solid #4ade80; }
+.ac-panel-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.ac-panel .ac-molecula-formula { font-size: 18px; }
+.ac-panel .ac-mini-atomo { width: 24px; height: 24px; font-size: 10px; }
+.ac-panel-puntos { color: #4ade80; font-weight: 800; font-size: 13px; }
+.ac-panel-vacio { font-size: 13px; color: #94a3b8; margin: 0; }
+
+/* En pantallas angostas los paneles van debajo del tablero */
+@media (max-width: 960px) {
+  .ac-juego-layout {
+    grid-template-columns: minmax(0, 480px);
+    justify-content: center;
+  }
+  .ac-panel-izq { order: 2; }
+  .ac-box-juego { order: 1; }
+  .ac-panel-der { order: 3; }
+  .ac-panel { max-height: none; }
+}
 
 /* ---------- Ranking ---------- */
 .ac-lb-row {
