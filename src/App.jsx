@@ -909,7 +909,7 @@ export default function App() {
         <div className="ac-box">
           <div className="ac-title">🏆 Tabla de Posiciones</div>
           <p className="ac-subtitulo">
-            Mejor puntaje de cada nivel, sumado (base de datos MySQL)
+            Mejor puntaje de cada nivel, sumado (base de datos en Supabase)
           </p>
 
           {ranking.length === 0 && <p className="ac-vacio">Todavía nadie completó un nivel.</p>}
