@@ -12,7 +12,7 @@
 create table public.perfiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null unique check (char_length(nickname) between 3 and 20),
-  nivel_maximo int not null default 1 check (nivel_maximo between 1 and 10),
+  nivel_maximo int not null default 1 check (nivel_maximo between 1 and 15),
   creado timestamptz not null default now()
 );
 
@@ -20,7 +20,7 @@ create table public.perfiles (
 -- jugador en cada nivel (un jugador tiene una fila por nivel ganado).
 create table public.puntajes (
   usuario_id uuid not null references public.perfiles(id) on delete cascade,
-  nivel int not null check (nivel between 1 and 10),
+  nivel int not null check (nivel between 1 and 15),
   puntos int not null default 0,
   estrellas int not null default 0 check (estrellas between 0 and 3),
   primary key (usuario_id, nivel)
@@ -94,7 +94,7 @@ begin
 
   -- greatest se queda con el mayor entre el guardado y el nuevo
   update public.perfiles p
-  set nivel_maximo = greatest(p.nivel_maximo, least(guardar_progreso.nivel_maximo, 10))
+  set nivel_maximo = greatest(p.nivel_maximo, least(guardar_progreso.nivel_maximo, 15))
   where p.id = jugador;
 
   -- Si el jugador ya tenía ese nivel, se actualiza solo si mejoró
@@ -171,3 +171,13 @@ $$;
 create trigger antes_de_crear_usuario
   before insert on auth.users
   for each row execute function public.revisar_dominio();
+
+-- ============================================================
+-- CAMBIO: de 10 a 15 niveles
+-- (si la base ya estaba creada, correr solo esta parte)
+-- ============================================================
+-- alter table public.perfiles drop constraint perfiles_nivel_maximo_check;
+-- alter table public.perfiles add constraint perfiles_nivel_maximo_check check (nivel_maximo between 1 and 15);
+-- alter table public.puntajes drop constraint puntajes_nivel_check;
+-- alter table public.puntajes add constraint puntajes_nivel_check check (nivel between 1 and 15);
+-- y volver a crear guardar_progreso con "create or replace function" (de arriba)

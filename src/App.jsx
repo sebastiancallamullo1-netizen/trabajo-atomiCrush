@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
-import { ELEMENTOS, MOLECULAS_DICCIONARIO, MAPA_NIVELES } from "./datos.js";
+import { ELEMENTOS, MOLECULAS_DICCIONARIO, MAPA_NIVELES, PREGUNTAS } from "./datos.js";
 import {
   FILAS,
   COLUMNAS,
@@ -34,6 +34,8 @@ const DISTANCIA_MINIMA = 20;
 const SEGUNDOS_PISTA = 6;
 // Máximo de moléculas que se pueden formar solas seguidas
 const MAXIMO_CADENA = 3;
+// Puntos extra por responder bien la pregunta de química al ganar un nivel
+const BONUS_PREGUNTA = 200;
 
 // Muestra de 0 a 3 estrellas, por ejemplo "★★☆"
 function textoEstrellas(cantidad) {
@@ -94,6 +96,9 @@ export default function App() {
   const [pista, setPista] = useState(null); // jugada sugerida { a, b }
   // Historial de combinaciones del nivel: la más nueva queda primera
   const [historial, setHistorial] = useState([]);
+  // Pregunta de química al ganar el nivel y la opción que eligió el jugador
+  const [pregunta, setPregunta] = useState(null);
+  const [respuesta, setRespuesta] = useState(null);
 
   // ---------- Estado de las animaciones ----------
   const [origenArrastre, setOrigenArrastre] = useState(null); // dónde se apretó
@@ -260,6 +265,8 @@ export default function App() {
     setTarjetas([]);
     setPista(null);
     setHistorial([]);
+    setPregunta(null);
+    setRespuesta(null);
     setMensaje({ texto: "", tipo: "" });
     setPantalla("jugando");
   };
@@ -479,6 +486,26 @@ export default function App() {
     setNivelCompletado(true);
     sonar("victoria");
     guardarResultado(puntosFinales, estrellas, albumActual);
+
+    // Se elige al azar una de las preguntas del nivel
+    const opciones = PREGUNTAS[nivelConfig.id] || [];
+    setPregunta(opciones.length > 0 ? opciones[Math.floor(Math.random() * opciones.length)] : null);
+    setRespuesta(null);
+  };
+
+  // Al elegir una respuesta: si es correcta se suman los puntos extra y se
+  // vuelve a guardar el resultado (la base de datos se queda con el mejor)
+  const responderPregunta = (indice) => {
+    if (respuesta !== null) return;
+    setRespuesta(indice);
+    if (indice === pregunta.correcta) {
+      sonar("acierto", 1);
+      const total = puntos + BONUS_PREGUNTA;
+      setPuntos(total);
+      guardarResultado(total, estrellasGanadas, album);
+    } else {
+      sonar("error");
+    }
   };
 
   // ---------- Poder especial: Catalizador ----------
@@ -866,7 +893,35 @@ export default function App() {
                 <h3 style={{ color: "#4ade80" }}>🎉 ¡Nivel Completado!</h3>
               )}
               <div className="ac-estrellas grande">{textoEstrellas(estrellasGanadas)}</div>
-              <p>Puntaje del nivel: {puntos} pts (incluye +300 por completarlo)</p>
+
+              {/* Pregunta de química: hay que responderla para seguir */}
+              {pregunta && (
+                <div className="ac-pregunta">
+                  <div className="ac-pregunta-titulo">🧪 Pregunta de química (+{BONUS_PREGUNTA} pts)</div>
+                  <p className="ac-pregunta-texto">{pregunta.pregunta}</p>
+                  {pregunta.opciones.map((opcion, i) => {
+                    let clases = "ac-opcion";
+                    if (respuesta !== null && i === pregunta.correcta) clases += " correcta";
+                    if (respuesta === i && i !== pregunta.correcta) clases += " incorrecta";
+                    return (
+                      <button key={opcion} className={clases} onClick={() => responderPregunta(i)} disabled={respuesta !== null}>
+                        {opcion}
+                      </button>
+                    );
+                  })}
+                  {respuesta !== null && (
+                    <p className="ac-pregunta-explicacion">
+                      {respuesta === pregunta.correcta ? `✅ ¡Correcto! +${BONUS_PREGUNTA} pts. ` : "❌ No era esa. "}
+                      {pregunta.explicacion}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <p>
+                Puntaje del nivel: {puntos} pts (incluye +300 por completarlo
+                {respuesta !== null && respuesta === pregunta?.correcta && ` y +${BONUS_PREGUNTA} por la pregunta`})
+              </p>
               {nivelConfig.id < MAPA_NIVELES.length && (
                 <button className="ac-btn" onClick={() => iniciarNivel(nivelIndex + 1)}>Siguiente nivel ▶</button>
               )}

@@ -603,6 +603,41 @@
 .ac-tarjeta-album { color: #94a3b8 !important; }
 .ac-tarjeta .ac-btn { max-width: 260px; }
 
+/* ---------- Pregunta de química al ganar el nivel ---------- */
+.ac-pregunta {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 14px;
+  margin: 8px 0 4px;
+  text-align: left;
+}
+.ac-pregunta-titulo {
+  font-family: "Fredoka", "Inter", sans-serif;
+  color: #facc15;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+.ac-resultado .ac-pregunta-texto { color: #f8fafc; font-size: 15px; margin: 6px 0 10px; }
+.ac-opcion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ac-opcion:hover:not(:disabled) { border-color: #38bdf8; }
+.ac-opcion:disabled { cursor: default; opacity: 0.75; }
+.ac-opcion.correcta { border-color: #4ade80; background: rgba(74, 222, 128, 0.15); opacity: 1; }
+.ac-opcion.incorrecta { border-color: #f87171; background: rgba(248, 113, 113, 0.15); opacity: 1; }
+.ac-resultado .ac-pregunta-explicacion { color: #cbd5e1; font-size: 13px; margin: 8px 0 0; }
+
 /* ---------- Paneles al costado del tablero ---------- */
 /* Izquierda: combinaciones posibles. Derecha: historial del nivel. */
 .ac-juego-layout {
