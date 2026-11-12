@@ -54,6 +54,20 @@ Los usuarios, puntajes y el álbum se guardan en [Supabase](https://supabase.com
 
 Las contraseñas las guarda Supabase hasheadas. Cada jugador solo puede ver y modificar sus propios datos, por las reglas de seguridad (RLS) del archivo `.sql`.
 
+## Pruebas y seguridad
+
+```
+npm test
+```
+
+Corre 92 pruebas contra la base de datos real y al final borra las cuentas de prueba que crea. Prueban:
+
+- **Registro:** datos válidos, nickname o correo repetido (sin importar mayúsculas), dominio no permitido, contraseña corta, nickname con espacios, HTML o inyección SQL.
+- **Filtro de palabras ofensivas** (`src/palabrasProhibidas.js`): más de 200 palabras, también disfrazadas (`p0r0ng4`, `p.u.t.a`, `puuuta`), sin bloquear palabras normales como "computadora" o "Mariano". La misma lista está en la base de datos, así que también se controla si alguien se saltea el juego.
+- **Inicio de sesión:** contraseña incorrecta, correo inexistente, inyección SQL y muchos intentos seguidos.
+- **Trampas en el puntaje:** puntajes gigantes o negativos, más de 3 estrellas, niveles o moléculas que no existen.
+- **Permisos:** ningún jugador puede leer, cambiar ni borrar datos de otro.
+
 ## Publicar el juego (Vercel)
 
 El juego está publicado en **https://atomicrush.vercel.app**.

@@ -7,6 +7,7 @@
    (La versión anterior con XAMPP, PHP y MySQL quedó en la rama "version-xampp").
    ============================================================ */
 import { createClient } from "@supabase/supabase-js";
+import { tienePalabraProhibida } from "./palabrasProhibidas.js";
 
 // Datos del proyecto de Supabase: se copian de Project Settings > API Keys.
 // La "publishable key" es pública (se puede subir al repo): lo que protege los
@@ -29,6 +30,11 @@ function traducirError(error) {
   if (mensaje.includes("invalid format") || mensaje.includes("is invalid")) return "El correo no es válido.";
   if (mensaje.includes("Database error saving new user")) return "No se pudo crear la cuenta. Revisá el nickname y el correo.";
   if (mensaje.includes("Failed to fetch")) return "No se pudo conectar con el servidor. Revisá tu conexión a internet.";
+  if (mensaje.includes("puntajes_puntos_check")) return "El puntaje no es válido.";
+  if (mensaje.includes("album_formula_check")) return "Esa molécula no existe en el juego.";
+  if (mensaje.includes("puntajes_estrellas_check")) return "Las estrellas tienen que ser de 0 a 3.";
+  if (mensaje.includes("puntajes_nivel_check")) return "Ese nivel no existe.";
+  if (mensaje.includes("invalid input syntax")) return "Los datos enviados no son válidos.";
   return mensaje || "Ocurrió un error. Probá de nuevo.";
 }
 
@@ -69,8 +75,24 @@ export async function registrarUsuario(nickname, correo, contrasenia) {
   if (nickname.length < 3 || nickname.length > 20) {
     return { ok: false, error: "El nickname tiene que tener entre 3 y 20 caracteres." };
   }
+  // Solo letras, números y _ . - (sin espacios ni símbolos raros)
+  if (!/^[A-Za-z0-9_.\-ÁÉÍÓÚáéíóúÑñÜü]+$/.test(nickname)) {
+    return { ok: false, error: "El nickname solo puede tener letras, números y los signos _ . -" };
+  }
+  // Filtro de palabras ofensivas en el nickname y en el correo
+  if (tienePalabraProhibida(nickname)) {
+    return { ok: false, error: "Ese nickname no está permitido. Elegí otro." };
+  }
+  if (tienePalabraProhibida(correo.split("@")[0])) {
+    return { ok: false, error: "Ese correo no está permitido. Usá otro." };
+  }
   if (contrasenia.length < 6) {
     return { ok: false, error: "La contraseña tiene que tener al menos 6 caracteres." };
+  }
+
+  // ¿El correo está bien escrito? (algo@algo.algo)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    return { ok: false, error: "El correo no es válido." };
   }
 
   // ¿El correo es de un dominio permitido? (la lista está en la tabla dominios_permitidos)
@@ -78,8 +100,9 @@ export async function registrarUsuario(nickname, correo, contrasenia) {
   const { data: permitido } = await supabase.from("dominios_permitidos").select("dominio").eq("dominio", dominio).maybeSingle();
   if (!permitido) return { ok: false, error: "Usá un correo de Gmail, Hotmail, Outlook, Yahoo o iCloud." };
 
-  // ¿Ya existe alguien con ese nickname?
-  const { data: ocupado } = await supabase.from("perfiles").select("id").eq("nickname", nickname).maybeSingle();
+  // ¿Ya existe alguien con ese nickname? (sin importar mayúsculas: "Pepe" y "pepe" son el mismo).
+  // En ilike el "_" es un comodín, por eso se le pone una barra adelante.
+  const { data: ocupado } = await supabase.from("perfiles").select("id").ilike("nickname", nickname.replace(/_/g, "\\_")).maybeSingle();
   if (ocupado) return { ok: false, error: "Ese nickname ya existe. Elegí otro." };
 
   // El nickname viaja como dato extra: la base de datos lo usa para crear el perfil
@@ -112,6 +135,15 @@ export async function recuperarSesion() {
   const { data } = await supabase.auth.getSession();
   if (!data.session) return { ok: false };
   return datosDelJugador(data.session.user.id);
+}
+
+// Borra la cuenta del jugador que inició sesión, con su perfil, puntajes y álbum
+export async function borrarMiCuenta() {
+  if (!configurado) return SIN_CONFIGURAR;
+  const { error } = await supabase.rpc("borrar_mi_cuenta");
+  if (error) return { ok: false, error: traducirError(error) };
+  await supabase.auth.signOut();
+  return { ok: true };
 }
 
 export async function cerrarSesionBD() {

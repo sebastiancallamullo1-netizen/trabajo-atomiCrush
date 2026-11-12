@@ -181,3 +181,126 @@ create trigger antes_de_crear_usuario
 -- alter table public.puntajes drop constraint puntajes_nivel_check;
 -- alter table public.puntajes add constraint puntajes_nivel_check check (nivel between 1 and 15);
 -- y volver a crear guardar_progreso con "create or replace function" (de arriba)
+
+-- ============================================================
+-- SEGURIDAD EXTRA (beta test)
+-- 1) Filtro de palabras ofensivas en el nickname y en el correo
+-- 2) Nickname solo con letras, números y _ . -
+-- 3) Puntajes entre 0 y 10.000 por nivel (para que no se pueda hacer trampa)
+-- 4) El álbum solo acepta las 14 moléculas del juego
+-- 5) Cada jugador puede borrar su propia cuenta
+-- Las palabras son las mismas que src/palabrasProhibidas.js
+-- ============================================================
+create table public.palabras_prohibidas (palabra text primary key);
+create table public.palabras_solas (palabra text primary key);
+create table public.palabras_permitidas (palabra text primary key);
+-- Sin políticas de lectura: nadie las puede leer ni modificar desde afuera
+alter table public.palabras_prohibidas enable row level security;
+alter table public.palabras_solas enable row level security;
+alter table public.palabras_permitidas enable row level security;
+
+insert into public.palabras_prohibidas (palabra) values ('boludo'), ('boluda'), ('pelotudo'), ('pelotuda'), ('forro'), ('forra'), ('pajero'), ('pajera'), ('pajin'), ('conchudo'), ('conchuda'), ('concha'), ('chota'), ('pija'), ('poronga'), ('garca'), ('salame'), ('gilazo'), ('chupapija'), ('chupamela'), ('chupala'), ('sorete'), ('ojete'), ('cagon'), ('cagona'), ('mogolico'), ('mogolica'), ('mongolico'), ('mongolica'), ('conchetumadre'), ('laconchadetumadre'), ('lpmqtp'), ('chupaculo'), ('gilipollas'), ('capullo'), ('subnormal'), ('cabron'), ('cabrona'), ('culero'), ('culera'), ('pinche'), ('chingar'), ('chingada'), ('chingado'), ('chingon'), ('verga'), ('vergon'), ('pendejo'), ('pendeja'), ('huevon'), ('weon'), ('aweonao'), ('conchetumare'), ('conchesumadre'), ('malparido'), ('malparida'), ('gonorrea'), ('mamaguevo'), ('mamaguebo'), ('mamahuevo'), ('hijueputa'), ('cojudo'), ('cojuda'), ('huevada'), ('imbecil'), ('idiota'), ('estupido'), ('estupida'), ('tarado'), ('tarada'), ('retrasado'), ('retrasada'), ('anormal'), ('inutil'), ('cornudo'), ('cornuda'), ('cretino'), ('cretina'), ('bastardo'), ('bastarda'), ('malnacido'), ('malnacida'), ('mierda'), ('mierdoso'), ('cagada'), ('carajo'), ('culiado'), ('culiao'), ('culeado'), ('hijodeputa'), ('hijadeputa'), ('putamadre'), ('lagranputa'), ('puta'), ('puto'), ('putita'), ('putito'), ('putazo'), ('putero'), ('prostituta'), ('prostituto'), ('ramera'), ('zorra'), ('perra'), ('trola'), ('trolo'), ('coger'), ('cogida'), ('cogiendo'), ('follar'), ('follando'), ('polla'), ('pollon'), ('tetas'), ('tetona'), ('culona'), ('culote'), ('pajearse'), ('pajeando'), ('masturb'), ('orgasmo'), ('orgia'), ('porno'), ('pornografia'), ('sexo'), ('violador'), ('violacion'), ('pedofilo'), ('pederasta'), ('zoofilia'), ('incesto'), ('chupapene'), ('pene'), ('vagina'), ('clitoris'), ('semen'), ('eyacul'), ('mamada'), ('felacion'), ('nalgas'), ('pichula'), ('calentona'), ('garchar'), ('garche'), ('maricon'), ('marica'), ('mariquita'), ('joto'), ('punal'), ('tortillera'), ('travelo'), ('trava'), ('negrodemierda'), ('negrata'), ('sudaca'), ('nazi'), ('hitler'), ('simio'), ('falopa'), ('cocaina'), ('porro'), ('drogadicto'), ('narco'), ('asesino'), ('matar'), ('suicid'), ('terrorista'), ('bomba'), ('fuck'), ('fucker'), ('fucking'), ('motherfucker'), ('shit'), ('bitch'), ('bastard'), ('asshole'), ('dick'), ('cock'), ('pussy'), ('cunt'), ('whore'), ('slut'), ('nigga'), ('nigger'), ('faggot'), ('retard'), ('porn'), ('sex');
+insert into public.palabras_solas (palabra) values ('gil'), ('gila'), ('orto'), ('teta'), ('pito'), ('culo'), ('pete'), ('hdp'), ('lpm'), ('ctm'), ('csm'), ('ptm'), ('kkk'), ('ass'), ('tit'), ('mono'), ('torta'), ('bolita'), ('cono'), ('anal'), ('pico'), ('raja');
+insert into public.palabras_permitidas (palabra) values ('comput'), ('disput'), ('imput'), ('reput'), ('diputad'), ('amput'), ('esput'), ('control'), ('recog'), ('escog'), ('acog'), ('encog'), ('conchita'), ('concheto'), ('pijama'), ('vergara'), ('georgia'), ('maricarmen'), ('maricruz'), ('matarazzo'), ('matarife'), ('matare'), ('carajillo'), ('bombero'), ('bombilla'), ('bombon'), ('bombard'), ('pinchetti'), ('pollack'), ('penelope'), ('sexto'), ('sexta'), ('sextet'), ('essex'), ('sussex'), ('dickson'), ('dickens'), ('peacock'), ('hitchcock'), ('hancock'), ('cockpit');
+
+-- Misma normalización que el juego: minúsculas, sin tildes, números y símbolos
+-- que imitan letras (p0rong4 → poronga) y letras repetidas de más (puuuta → puta)
+create function public.normalizar_texto(texto text)
+returns text
+language sql
+immutable
+as $$
+  select regexp_replace(
+    translate(lower(texto), 'áéíóúüñàèìòù0134578@$', 'aeiouunaeiouoieastbas'),
+    '(.)\1{2,}', '\1', 'g');
+$$;
+
+create function public.tiene_palabra_prohibida(texto text)
+returns boolean
+language plpgsql
+stable
+security definer set search_path = ''
+as $$
+declare
+  limpio text := public.normalizar_texto(texto);
+  solo_letras text := regexp_replace(public.normalizar_texto(texto), '[^a-z]', '', 'g');
+  permitida text;
+begin
+  for permitida in select palabra from public.palabras_permitidas loop
+    solo_letras := replace(solo_letras, permitida, '-');
+  end loop;
+  if exists (select 1 from public.palabras_prohibidas where position(palabra in solo_letras) > 0) then
+    return true;
+  end if;
+  return exists (
+    select 1 from public.palabras_solas
+    where palabra = any (regexp_split_to_array(limpio, '[^a-z]+'))
+       or palabra = regexp_replace(limpio, '[^a-z]', '', 'g')
+  );
+end;
+$$;
+
+-- Reemplaza al control anterior: ahora revisa dominio, nickname y palabras ofensivas
+create or replace function public.revisar_dominio()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+declare
+  nick text := coalesce(new.raw_user_meta_data ->> 'nickname', '');
+begin
+  if not exists (
+    select 1 from public.dominios_permitidos
+    where dominio = lower(split_part(new.email, '@', 2))
+  ) then
+    raise exception 'Dominio de correo no permitido';
+  end if;
+  if nick !~ '^[A-Za-z0-9_.ÁÉÍÓÚáéíóúÑñÜü-]{3,20}$' then
+    raise exception 'Nickname inválido';
+  end if;
+  if public.tiene_palabra_prohibida(nick) or public.tiene_palabra_prohibida(split_part(new.email, '@', 1)) then
+    raise exception 'Palabra no permitida';
+  end if;
+  return new;
+end;
+$$;
+
+-- Reglas en las tablas
+alter table public.perfiles add constraint perfiles_nickname_formato
+  check (nickname ~ '^[A-Za-z0-9_.ÁÉÍÓÚáéíóúÑñÜü-]{3,20}$');
+alter table public.puntajes add constraint puntajes_puntos_check check (puntos between 0 and 10000);
+alter table public.album add constraint album_formula_check
+  check (formula in ('H2O', 'O2', 'H2', 'N2', 'NaCl', 'CO2', 'NH3', 'CH4', 'CaO', 'MgO', 'KCl', 'KOH', 'K2O', 'CaCl2'));
+
+-- Cada jugador puede borrar su cuenta (se borran también su perfil, puntajes y álbum)
+create function public.borrar_mi_cuenta()
+returns void
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Tenés que iniciar sesión';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- El nickname es único sin importar mayúsculas ("Pepe" y "pepe" no pueden convivir).
+-- Se controla al registrarse (ya había dos cuentas "dac" y "Dac" de antes).
+create or replace function public.revisar_nickname_repetido()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  if exists (select 1 from public.perfiles where lower(nickname) = lower(new.raw_user_meta_data ->> 'nickname')) then
+    raise exception 'Nickname repetido';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger antes_de_crear_usuario_nickname
+  before insert on auth.users
+  for each row execute function public.revisar_nickname_repetido();

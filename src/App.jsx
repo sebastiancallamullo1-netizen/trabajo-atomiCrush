@@ -42,6 +42,28 @@ function textoEstrellas(cantidad) {
   return "★".repeat(cantidad) + "☆".repeat(3 - cantidad);
 }
 
+// Lista de átomos de una molécula, uno por uno: H2O → ["H", "H", "O"]
+function listaDeAtomos(molecula) {
+  return Object.entries(molecula.atomosNecesarios).flatMap(([simbolo, cantidad]) => Array(cantidad).fill(simbolo));
+}
+
+// Muestra la combinación que se hizo, por ejemplo  H + H + O
+function Combinacion({ molecula }) {
+  const atomos = listaDeAtomos(molecula);
+  return (
+    <div className="ac-combinacion">
+      {atomos.map((simbolo, i) => (
+        <span key={i} className="ac-combinacion-paso">
+          {i > 0 && <span className="ac-combinacion-mas">+</span>}
+          <span className="ac-mini-atomo" style={{ "--color": ELEMENTOS[simbolo].color }}>{simbolo}</span>
+        </span>
+      ))}
+      <span className="ac-combinacion-mas">→</span>
+      <span className="ac-combinacion-resultado">{molecula.formula}</span>
+    </div>
+  );
+}
+
 // Dibuja los átomos de una molécula como bolitas de colores
 function MiniAtomos({ molecula }) {
   return (
@@ -945,10 +967,7 @@ export default function App() {
             {historial.length === 0 && <p className="ac-panel-vacio">Todavía no formaste ninguna molécula.</p>}
             {historial.map((jugada) => (
               <div key={jugada.id} className="ac-panel-item">
-                <div className="ac-panel-fila">
-                  <span className="ac-molecula-formula">{jugada.molecula.formula}</span>
-                  <span className="ac-panel-puntos">+{jugada.puntos}</span>
-                </div>
+                <Combinacion molecula={jugada.molecula} />
                 <span className="ac-molecula-nombre">
                   {jugada.molecula.nombre}
                   {jugada.enCadena && " · ⛓️ en cadena"}

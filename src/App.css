@@ -682,6 +682,12 @@
 .ac-panel .ac-molecula-formula { font-size: 18px; }
 .ac-panel .ac-mini-atomo { width: 24px; height: 24px; font-size: 10px; }
 .ac-panel-puntos { color: #4ade80; font-weight: 800; font-size: 13px; }
+
+/* Historial: la combinación de átomos que se hizo (H + H + O → H2O) */
+.ac-combinacion { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
+.ac-combinacion-paso { display: inline-flex; align-items: center; gap: 3px; }
+.ac-combinacion-mas { color: #94a3b8; font-weight: 800; font-size: 13px; }
+.ac-combinacion-resultado { font-family: "Fredoka", "Inter", sans-serif; font-weight: 700; font-size: 17px; margin-left: 2px; }
 .ac-panel-vacio { font-size: 13px; color: #94a3b8; margin: 0; }
 
 /* En pantallas angostas los paneles van debajo del tablero */
