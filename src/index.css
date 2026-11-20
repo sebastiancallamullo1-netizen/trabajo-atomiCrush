@@ -1,0 +1,9 @@
+/* Estilos base de la página (los del juego están en App.css) */
+body {
+  margin: 0;
+  background: #0b1120;
+}
+
+* {
+  box-sizing: border-box;
+}
